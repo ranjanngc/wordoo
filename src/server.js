@@ -66,10 +66,13 @@ const gameUtil =
         const userAnswered = userList.default.users.filter((user)=> user.doneForRound);
 
         if(userAnswered){
-            userList.default.users[userList.default.activeUserIndex].score += userAnswered.length * 100;
+            if(userList.default.activeUserIndex != -1 && userList.default.users[userList.default.activeUserIndex]){
+                userList.default.users[userList.default.activeUserIndex].score += userAnswered.length * 100;
+            }
             //userList.default.gameScore.push({name: user.name, score: user.score})
         }
         
+        userList.default.lastActiveUserIndex = userList.default.activeUserIndex
         userList.default.activeUserIndex +=1
 
         if(userList.default.activeUserIndex >= userList.default.users.length){
@@ -119,6 +122,7 @@ const userList = {
         endTime: null,
         totalSeconds: 0,
         activeUserIndex: 0,
+        lastActiveUserIndex:0,
         roomName: '',
         users: [],
         gameScore: [],
@@ -204,7 +208,13 @@ io.on('connection', function(socket) {
         io.emit('REFRESH_USER_LIST', {users: userList.default.users})
 
         if(userLeft)
-        io.emit('MESSAGE', {user: 'bot', message: `Player ${userLeft.name} left`, bot: true})
+        {
+            io.emit('MESSAGE', {user: 'bot', message: `Player ${userLeft.name} left`, bot: true})
+            if(userLeft.active){
+                gameUtil.endGame()
+                userList.default.activeUserIndex = -1
+            }
+        }
     });
     
 });

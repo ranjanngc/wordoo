@@ -76,10 +76,11 @@
                 <input type="range" orient="vertical" min="1" max="30" step="1" v-model="strokeWidth" class="w-5" style="-webkit-appearance: slider-vertical">
             </div>
         </div>
+        <!-- CHAT CONTAINER-->
         <div class="border">
             <div 
                 ref="chatdiv"
-                class="w-80 min-w-fit flex flex-col text-left overflow-auto h-4/5 relative max-w-sm mx-auto scroll-smooth pb-10">
+                class="w-80 min-w-fit flex flex-col text-left overflow-auto h-[420px] relative max-w-sm mx-auto scroll-smooth pb-10">
                 <ul>
                     <li 
                         v-for="(item, index) in messageStore"
@@ -108,7 +109,7 @@ const pos = {x:0,y:0}
 const canvasRef = ref({})
 const chatdiv = ref({})
 const socket = io('gmm.herokuapp.com')
-// const socket = io('ranjan:4040')
+//const socket = io('ranjan:4040')
 const text = ref('')
 let messageStore = ref(Array<IMessage>())
 const message = ref('')
@@ -135,13 +136,25 @@ userWords.value = []
 const gameCompleted = ref(false)
 const roundUp = ref(false)
 
-const setPosition = (e:any) => {
+const setPosition = (e:MouseEvent|TouchEvent) => {
+    
+    if(e.type === 'mousemove' || e.type === 'mousedown'){
 
-    const target = e.target || e.srcElement
-    const rect = target.getBoundingClientRect()
-    const canvas = (canvasRef.value as HTMLCanvasElement).getBoundingClientRect()
-    pos.x = e.pageX - rect.left
-    pos.y = e.pageY - rect.top
+        const evt = e as MouseEvent
+        const target = evt.target as any
+        const rect = target.getBoundingClientRect()
+        const canvas = (canvasRef.value as HTMLCanvasElement).getBoundingClientRect()
+        pos.x = evt.pageX - rect.left
+        pos.y = evt.pageY - rect.top
+    }
+    else{
+        const evt = e as TouchEvent
+        const target = evt.target as any
+        const rect = target.getBoundingClientRect()
+        const canvas = (canvasRef.value as HTMLCanvasElement).getBoundingClientRect()
+        pos.x = evt.touches[0].pageX - rect.left
+        pos.y = evt.touches[0].pageY - rect.top
+    }
 }
 
 const resize = () => {

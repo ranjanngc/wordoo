@@ -106,6 +106,7 @@ const pos = {x:0,y:0}
 const canvasRef = ref({})
 const chatdiv = ref({})
 const socket = io('gmm.herokuapp.com')
+//const socket = io('ranjan:4040')
 const text = ref('')
 let messageStore = ref(Array<IMessage>())
 const message = ref('')
@@ -122,6 +123,7 @@ interface ILoginUser {
     score:Number,
     doneForRound: Boolean,
 }
+
 const hint = ref(Array<string>())
 const playerName = NameUtility.random();
 const loginUsers = ref(Array<ILoginUser>())
@@ -130,6 +132,7 @@ const userWords = ref([])
 userWords.value = []
 const gameCompleted = ref(false)
 const roundUp = ref(false)
+
 const setPosition = (e:any) => {
 
     const target = e.target || e.srcElement
@@ -140,11 +143,38 @@ const setPosition = (e:any) => {
 }
 
 const resize = () => {
+
       const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
       ctx.canvas.width = window.innerWidth;
       ctx.canvas.height = window.innerHeight;
 }
 
+interface IDrawing{
+    x: number,
+    y: number,
+    mx: number,
+    my: number,
+    ss: string,
+    lw: number,
+    fl: string
+}
+const drawFromObject= (draw:IDrawing) =>{
+    const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
+    ctx.beginPath();
+
+    if(draw.fl){
+        ctx.rect(0, 0, (canvasRef.value as any).width, (canvasRef.value as any).height);
+        ctx.fillStyle = strokeColor.value
+        ctx.fill();
+    }else{
+        ctx.lineWidth = draw.lw
+        ctx.lineCap = "round";
+        ctx.strokeStyle = draw.ss;
+        ctx.moveTo(draw.x, draw.y);
+        ctx.lineTo(draw.mx, draw.my);
+        ctx.stroke();
+    }
+}
 const draw = (e:MouseEvent) => {
 
         if (e.buttons !== 1 || !isActive.value) {
@@ -156,12 +186,21 @@ const draw = (e:MouseEvent) => {
         ctx.lineCap = "round";
         ctx.strokeStyle = strokeColor.value;
         ctx.moveTo(pos.x, pos.y);
+        const drawing = {} as IDrawing;
+        drawing.x = pos.x
+        drawing.y= pos.y
         setPosition(e);
         ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
         
+        drawing.mx = pos.x
+        drawing.my= pos.y
+        drawing.ss = strokeColor.value
+        drawing.lw = strokeWidth.value
+        // setPosition(e);
+        //drawFromObject(drawing)
         nextTick(()=>{
-            sendDraw()
+            sendDraw(drawing)
         })
 }
 
@@ -182,15 +221,17 @@ const fillCanvas = () => {
     ctx.fillStyle = strokeColor.value
     ctx.fill();
     nextTick(()=>{
-        sendDraw()
+        const drawing = {} as IDrawing;
+        drawing.fl = strokeColor.value
+        sendDraw(drawing)
     })
 }
 
-const sendDraw = async () => {
+const sendDraw = async (draw:IDrawing) => {
     const ctx = (canvasRef.value as any);//.getContext("2d")!;
     await socket.emit('SEND_DRAWING', {
         user: playerName,
-        draw: ctx.toDataURL()
+        draw: draw
     })
 
 }
@@ -240,13 +281,14 @@ onMounted(()=>{
 
         if(data.user !== playerName){
             
-            const ctx = (canvasRef.value as any).getContext("2d")!;
-            var img=new Image();
-            img.onload = ()=>{
-                ctx.drawImage(img, 0, 0)
-            }
+            drawFromObject(data.draw)
+            // const ctx = (canvasRef.value as any).getContext("2d")!;
+            // var img=new Image();
+            // img.onload = ()=>{
+            //     ctx.drawImage(img, 0, 0)
+            // }
 
-            img.src=data.draw;
+            // img.src=data.draw;
         }
     })
 

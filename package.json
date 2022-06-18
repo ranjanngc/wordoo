@@ -4,9 +4,10 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build --watch",
+    "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "ssr": "node src/server.js"
+    "ssr": "node src/server.js",
+    "start": "node src/server.js"
   },
   "dependencies": {
     "@vue/server-renderer": "^3.2.37",

@@ -1,0 +1,127 @@
+// import path from 'path'
+// import express from 'express'
+// import { createSSRApp } from 'vue';
+// import { renderToString } from '@vue/server-renderer';
+// import { getWords } from './db/words'
+// import http from 'http'
+// import {data } from  'autoprefixer'
+// import { Socket } from 'socket.io';
+
+// const server = express();
+// const game = require('./game/game')
+
+// server.use("/assets", express.static(path.join(__dirname, "../dist", "assets")));
+
+// server.use(
+//     "/favicon.ico",
+//     express.static(path.join(__dirname, "../dist", "favicon.ico"))
+// );
+  
+// server.get("/", async (req: any, res: any) => {
+
+//     res.sendFile(path.join(__dirname, "../dist", "index.html"))
+// });
+
+// server.get("/random/", async (req: any, res: any) => {
+
+//     res.send(getWords())
+// });
+
+// const serverInstate = http.createServer(server);
+// const io = new Socket(serverInstate);
+
+// io.on('connection', function(socket: any) {
+
+//     socket.on('SEND_DRAWING', (data) => {
+//       io.emit('DRAWING', data)
+//     })
+
+//     socket.on('SEND_MESSAGE', (data) => {
+
+//       //console.log('SEND MESSAGE',userList.default.currentWord, data.message);
+//       game.isWinner(io, socket.id, "")
+//         if(userList.default.currentWord && data.message.toLowerCase() === userList.default.currentWord?.toLowerCase()){
+//           const winUser = userList.default.users.find((item) => item.id !== socket.id)
+          
+//             if(!winUser.doneForRound){
+//                 const gt = ((new Date().getTime())- userList.default.startTime)/1000;
+//                 console.log(gt)
+//                 winUser.score += Math.floor(5000/gt);
+//                 winUser.doneForRound = true
+//                 io.emit('MESSAGE', {message: `guessed the word!`, user: winUser.name, score: winUser.score})
+//                 // const users = userList.default.users.map((item)=> userList.default.users)
+//                 //console.log('disconnect',users)
+//                 io.emit('REFRESH_USER_LIST',  { users: userList.default.users })
+//             }
+//         }
+//         else
+//             io.emit('MESSAGE', data)
+//     })
+
+//     socket.on('LOG_IN', (data) => {
+//       //console.log('login',socket.id, data.user)
+//       userList.default.users.push({name: data.user, id: socket.id, score: 0})
+
+//       // has active user
+//       const activeUser = userList.default.users.find((user)=> user.active)
+//       if(!activeUser && userList.default.users.length > 1){
+//             userList.default.users[0].active = true;
+//             userList.activeUser = 0;
+//       }
+
+//       io.emit('REFRESH_USER_LIST',  { users: userList.default.users })
+//     })
+
+//     socket.on('REGISTER-WORD', (data) => {
+       
+//         userList.default.game+=1;
+//         userList.default.currentWord = data.word;
+//         userList.default.startTime = new Date().getTime()
+//         const wordMap = [...data.word].map(()=> '')
+//         const tm = new Date();
+//         userList.default.totalSeconds = (wordMap.length * 5) + 20
+//         userList.default.endTime =  tm.setSeconds(tm.getSeconds() + (userList.default.totalSeconds))
+        
+//         userList.default.users.forEach((user)=>{
+//             user.game = userList.default.game
+//             user.round = userList.default.round
+//         })
+
+//         io.emit('GAME_HINT',  { hint: wordMap, guessTime: userList.default.totalSeconds })
+
+//         const endGame = setTimeout(()=>{
+
+//             const userAnswered = userList.default.users.find((user)=> user.doneForRound).length
+//             userList.default.users[userList.default.activeUserIndex].score = userAnswered * 100;
+//             userList.default.activeUserIndex +=1
+
+//             if(userList.default.activeUserIndex >= userList.default.users.length)
+//             {
+//                 userList.default.activeUserIndex = 0
+//             }
+
+//             userList.default.users.forEach((user)=>{
+//                 user.active = false
+//                 user.game+=1;
+//                 user.doneForRound = false
+//             })
+
+//             userList.default.users[userList.default.activeUserIndex].active = true;
+//             io.emit('GAME_COMPLETE')
+//             io.emit('REFRESH_USER_LIST', {users: userList.default.users})
+
+//         }, (userList.default.totalSeconds * 1000))
+//     })
+
+//     socket.on("disconnect", (data) => {
+      
+//       userList.default.users = userList.default.users.filter((item) => item.id !== socket.id)
+      
+//       // const users = userList.default.users.map((item)=> {return { user: item.name, active: item.active }})
+//       //console.log('disconnect',users)
+//       io.emit('REFRESH_USER_LIST', {users: userList.default.users})
+//     });
+    
+// });
+
+// serverInstate.listen(4040);

@@ -1,0 +1,291 @@
+<!-- Please remove this file from your project -->
+<template>
+    <div class="flex flex-row m-2">
+        <div class="flex flex-col text-left border w-40">
+            <ul>
+                <li 
+                    v-for="user in loginUsers" 
+                    :class="(user.doneForRound ? 'bg-green-700 text-white': 'text-orange-600 ')"
+                    class="text-sm select-none">
+                        {{user.name}}
+                        <span class="align-right bg-red-100 text-red-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded dark:bg-red-200 dark:text-red-900">{{user.score}}</span>
+                </li>
+            </ul>
+        </div>
+        <div v-show="userWords.length === 0 && !gameCompleted">
+            <canvas
+                class="border position-relative"
+                width="600"
+                height="430"
+                ref="canvasRef"
+                id="canvasRef"
+                @mousemove="draw"
+                @mousedown="setPosition"
+                @mouseenter="setPosition"
+                @resize="resize"
+            ></canvas>
+            <div class="flex flex-row">
+                <div v-for="char in hint" class="border align-middle w-10 h-10 rounded-sm">{{char}}</div>
+            </div>
+        </div>
+        <div v-show="userWords.length>0" style="width:600px; height:430px" class="flex flex-col p-5 align-middle">
+            <h3 class="font-bold">Choose a word</h3>
+            <button 
+                v-for="word in userWords" 
+                @click="setWord(word)" 
+                class="bg-cyan-400 :focus:bg-cyan-400 hover:bg-violet-600 active:bg-violet-700 m-1 pl-2 pr-2 rounded-sm h-9 w-full">
+                {{word}}
+            </button>
+        </div>
+
+        <div v-show="userWords.length==0 && gameCompleted" style="width:600px; height:430px" class="align-middle">
+
+            <div class="flex flex-col px-6 py-4 shadow-lg animate-bounce align-middle">
+                <div class="font-bold text-xl mb-2">{{roundUp ? 'Round UP': 'Score'}}</div>
+                
+                <div v-show="!roundUp" v-for="user in loginUsers" class="text-orange-600 mr-1 text-base">
+                    {{user.name + ':' + user.score}}
+                </div>
+                <p v-if="loginUsers.find(u => u.active)">{{(loginUsers.filter(u=> u.active))[0].name}} is choosing a word!</p>
+            </div>
+        </div>
+
+        <div class="flex flex-row border rounded-lg p-5" v-show="isActive">
+            <div class="flex flex-col mr-2">
+                <div class="w-5 h-5 mb-1" :style="{'background-color':strokeColor}"></div>
+                <div class="bg-slate-900 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(15 23 42)'"></div>
+                <div class="bg-blue-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(59 130 246)'"></div>
+                <div class="bg-blue-800 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(30 64 175)'"></div>
+                <div class="bg-green-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(34 197 94)'"></div>
+                <div class="bg-green-700 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(21 128 61)'"></div>
+                <div class="bg-red-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(239 68 68)'"></div>
+                <div class="bg-red-800 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(153 27 27)'"></div>
+                <div class="bg-yellow-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(234 179 8)'"></div>
+                <div class="bg-orange-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(249 115 22)'"></div>
+                <div class="bg-pink-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(236 72 153)'"></div>
+                <div class="bg-purple-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(168 85 247)'"></div>
+                <div class="bg-white w-5 h-5 rounded-xl mb-1 border-black border" @click="strokeColor='rgb(255 255 255)'"></div>
+                <div class="bg-cyan-400 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(34 211 238)'"></div>
+                
+            </div>
+            <div>
+                <div class="bg-gray-400 mb-1"  @click="clearCanvas">x</div>
+                <div class="bg-gray-400 mb-1"  @click="fillCanvas">x</div>
+                <input type="range" orient="vertical" min="1" max="30" step="1" v-model="strokeWidth" class="w-5" style="-webkit-appearance: slider-vertical">
+            </div>
+        </div>
+        <div class="border">
+            <div 
+                ref="chatdiv"
+                class="w-80 min-w-fit flex flex-col text-left overflow-auto h-4/5 relative max-w-sm mx-auto scroll-smooth pb-10">
+                <ul>
+                    <li 
+                        v-for="(item, index) in messageStore"
+                        :class="(item.user === 'bot' ? 'text-green-500': 'even:bg-slate-300 odd:bg-slate-200')"
+                        class=" mb-1 text-sm text-ellipsis select-none pl-1">
+                            <span 
+                                
+                                class="text-orange-600 mr-1">{{item.user + ':'}}</span>
+                            {{item.message}}
+                    </li>
+                </ul>
+            </div>
+            <input :disabled="isActive" type="text" class="w-full border pl-2" v-model="text" @keypress="sendMessage" maxlength="30">
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, inject, nextTick } from 'vue'
+import io from 'socket.io-client'
+import {NameUtility} from '../db/names'
+// import * as bullseye from '@/assets/bullseye.svg?url'
+let strokeColor = ref('rgb(15 23 42)')
+const strokeWidth = ref(1)
+const pos = {x:0,y:0}
+const canvasRef = ref({})
+const chatdiv = ref({})
+const socket = io('ranjan:4040')
+const text = ref('')
+let messageStore = ref(Array<IMessage>())
+const message = ref('')
+const isActive = ref(false)
+messageStore.value = []
+let lastMessage = ''
+interface IMessage{
+    user: string,
+    message: string
+}
+interface ILoginUser {
+    name: string,
+    active: Boolean,
+    score:Number,
+    doneForRound: Boolean,
+}
+const hint = ref(Array<string>())
+const playerName = NameUtility.random();
+const loginUsers = ref(Array<ILoginUser>())
+loginUsers.value = []
+const userWords = ref([])
+userWords.value = []
+const gameCompleted = ref(false)
+const roundUp = ref(false)
+const setPosition = (e:any) => {
+
+    const target = e.target || e.srcElement
+    const rect = target.getBoundingClientRect()
+    const canvas = (canvasRef.value as HTMLCanvasElement).getBoundingClientRect()
+    pos.x = e.pageX - rect.left
+    pos.y = e.pageY - rect.top
+}
+
+const resize = () => {
+      const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
+      ctx.canvas.width = window.innerWidth;
+      ctx.canvas.height = window.innerHeight;
+}
+
+const draw = (e:MouseEvent) => {
+
+        if (e.buttons !== 1 || !isActive.value) {
+            return;
+        }
+        const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
+        ctx.beginPath();
+        ctx.lineWidth = strokeWidth.value;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = strokeColor.value;
+        ctx.moveTo(pos.x, pos.y);
+        setPosition(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        
+        nextTick(()=>{
+            sendDraw()
+        })
+}
+
+const clearCanvas = () => {
+
+    const prevSV = strokeColor.value
+
+    strokeColor.value = "rgb(255 255 255)"
+    fillCanvas()
+    strokeColor.value = prevSV
+}
+
+const fillCanvas = () => {
+
+    const ctx = (canvasRef.value as any).getContext("2d");
+    ctx.beginPath();
+    ctx.rect(0, 0, (canvasRef.value as any).width, (canvasRef.value as any).height);
+    ctx.fillStyle = strokeColor.value
+    ctx.fill();
+    nextTick(()=>{
+        sendDraw()
+    })
+}
+
+const sendDraw = async () => {
+    const ctx = (canvasRef.value as any);//.getContext("2d")!;
+    await socket.emit('SEND_DRAWING', {
+        user: playerName,
+        draw: ctx.toDataURL()
+    })
+
+}
+
+const sendMessage = (e:KeyboardEvent) =>{
+
+    if(e.key === "Enter" && text.value.trim() !== '' && lastMessage!== text.value.trim()){
+        socket.emit('SEND_MESSAGE', {
+            user: playerName,
+            message: text.value.trim()
+        })
+        lastMessage = text.value.trim()
+        text.value = ''
+    }
+}
+
+const getWord = () =>{
+
+    fetch('/random')
+    .then(response => response.json())
+    .then((words)=>{
+        userWords.value =words
+        console.log('getword', userWords.value)
+    });
+}
+
+const setWord = (word:string) => {
+
+    socket.emit('REGISTER-WORD', {
+        user: playerName,
+        word: word
+    })
+    userWords.value = []
+}
+
+onMounted(()=>{
+
+    socket.on('MESSAGE', (data: IMessage) =>{
+
+        message.value = data.message
+        messageStore.value.push(data);
+
+        (chatdiv.value as HTMLDListElement).scrollTop = (chatdiv.value as HTMLDListElement).scrollHeight;
+    })
+
+    socket.on('DRAWING', (data: any) =>{
+
+        if(data.user !== playerName){
+            
+            const ctx = (canvasRef.value as any).getContext("2d")!;
+            var img=new Image();
+            img.onload = ()=>{
+                ctx.drawImage(img, 0, 0)
+            }
+
+            img.src=data.draw;
+        }
+    })
+
+    socket.on('REFRESH_USER_LIST', (data:any) => {
+        
+        gameCompleted.value = data.completed
+        roundUp.value = data.roundUp
+        loginUsers.value = data.users
+        data.users.forEach((user:any) => {
+            if(user.name === playerName && !isActive.value){
+                isActive.value = user.active
+
+                if(isActive.value){
+                    getWord()
+                }
+            }
+        });
+    })
+
+    socket.on('disconnect', (data:any) => {
+        socket.emit('LOG_OUT', {
+            user: playerName
+        })
+    })
+
+    socket.on('GAME_HINT', (data: any) => {
+        gameCompleted.value = false
+        hint.value = data.hint
+    })
+
+    socket.on('GAME_COMPLETE', (score)=>{
+        
+        isActive.value=false
+        userWords.value = []
+        nextTick(()=> clearCanvas())  
+    })
+
+    socket.emit('LOG_IN', {
+        user: playerName
+    })
+})
+</script>

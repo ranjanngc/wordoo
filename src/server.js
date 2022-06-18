@@ -30,7 +30,7 @@ server.get("/random/", async (req, res) => {
 });
 
 console.log(`
-    You can navigate to http://ranjan:4040
+    You can navigate to http://ranjan:${process.env.PORT ?? 4040}
 `);
 
 const GlobalTimer = setInterval(()=>{
@@ -209,4 +209,4 @@ io.on('connection', function(socket) {
     
 });
 
-serverInstate.listen(8080);
+serverInstate.listen(process.env.PORT ?? 4040);

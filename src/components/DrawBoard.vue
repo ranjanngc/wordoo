@@ -21,7 +21,9 @@
                 id="canvasRef"
                 @mousemove="draw"
                 @mousedown="setPosition"
-                @mouseenter="setPosition"
+                
+                @touchmove="draw"
+                @touchstart="setPosition"
                 @resize="resize"
             ></canvas>
             <div class="flex flex-row">
@@ -69,8 +71,8 @@
                 
             </div>
             <div>
-                <div class="bg-gray-400 mb-1"  @click="clearCanvas">x</div>
-                <div class="bg-gray-400 mb-1"  @click="fillCanvas">x</div>
+                <div class="bg-gray-400 mb-1"  @click="clearCanvas">Rst</div>
+                <div class="bg-gray-400 mb-1"  @click="fillCanvas">Fll</div>
                 <input type="range" orient="vertical" min="1" max="30" step="1" v-model="strokeWidth" class="w-5" style="-webkit-appearance: slider-vertical">
             </div>
         </div>
@@ -106,7 +108,7 @@ const pos = {x:0,y:0}
 const canvasRef = ref({})
 const chatdiv = ref({})
 const socket = io('gmm.herokuapp.com')
-//const socket = io('ranjan:4040')
+// const socket = io('ranjan:4040')
 const text = ref('')
 let messageStore = ref(Array<IMessage>())
 const message = ref('')
@@ -175,7 +177,28 @@ const drawFromObject= (draw:IDrawing) =>{
         ctx.stroke();
     }
 }
-const draw = (e:MouseEvent) => {
+
+const drawFromArray = (draw: number[]) => {
+    const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
+    ctx.beginPath();
+    //console.log(draw)
+    if(draw.length >= 7){
+        ctx.rect(0, 0, (canvasRef.value as any).width, (canvasRef.value as any).height);
+        ctx.fillStyle = draw[6].toString()
+        ctx.fill();
+    }else{
+        
+        ctx.lineCap = "round";
+        
+        ctx.moveTo(draw[0], draw[1]);
+        ctx.lineTo(draw[2], draw[3]);
+        ctx.strokeStyle = draw[4] as any;
+        ctx.lineWidth = draw[5]
+        ctx.stroke();
+    }
+}
+
+const draw = (e:any) => {
 
         if (e.buttons !== 1 || !isActive.value) {
             return;
@@ -186,21 +209,33 @@ const draw = (e:MouseEvent) => {
         ctx.lineCap = "round";
         ctx.strokeStyle = strokeColor.value;
         ctx.moveTo(pos.x, pos.y);
+        const drawingArr = new Array<any>()
         const drawing = {} as IDrawing;
+       
         drawing.x = pos.x
         drawing.y= pos.y
+        drawingArr.push(pos.x) // 0
+        drawingArr.push(pos.y) // 1
+
         setPosition(e);
         ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
         
         drawing.mx = pos.x
         drawing.my= pos.y
+
+        drawingArr.push(pos.x) // 2
+        drawingArr.push(pos.y) // 3
+
+        drawingArr.push(strokeColor.value) // 4
+        drawingArr.push(strokeWidth.value) // 5
+
         drawing.ss = strokeColor.value
         drawing.lw = strokeWidth.value
         // setPosition(e);
         //drawFromObject(drawing)
         nextTick(()=>{
-            sendDraw(drawing)
+            sendDraw(drawingArr)
         })
 }
 
@@ -220,14 +255,14 @@ const fillCanvas = () => {
     ctx.rect(0, 0, (canvasRef.value as any).width, (canvasRef.value as any).height);
     ctx.fillStyle = strokeColor.value
     ctx.fill();
-    nextTick(()=>{
-        const drawing = {} as IDrawing;
-        drawing.fl = strokeColor.value
+    //nextTick(()=>{
+        const drawing = [0,0,0,0,0,0,strokeColor.value] as Array<any>
+        //drawing.fl = strokeColor.value
         sendDraw(drawing)
-    })
+    //})
 }
 
-const sendDraw = async (draw:IDrawing) => {
+const sendDraw = async (draw:number[]) => {
     const ctx = (canvasRef.value as any);//.getContext("2d")!;
     await socket.emit('SEND_DRAWING', {
         user: playerName,
@@ -254,7 +289,7 @@ const getWord = () =>{
     .then(response => response.json())
     .then((words)=>{
         userWords.value =words
-        console.log('getword', userWords.value)
+        //console.log('getword', userWords.value)
     });
 }
 
@@ -281,7 +316,8 @@ onMounted(()=>{
 
         if(data.user !== playerName){
             
-            drawFromObject(data.draw)
+            //drawFromObject(data.draw)
+            drawFromArray(data.draw)
             // const ctx = (canvasRef.value as any).getContext("2d")!;
             // var img=new Image();
             // img.onload = ()=>{

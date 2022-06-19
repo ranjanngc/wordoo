@@ -14,7 +14,7 @@
         </div>
         <div v-show="userWords.length === 0 && !gameCompleted">
             <canvas
-                class="border position-relative"
+                class="border position-relative touch-none"
                 width="600"
                 height="430"
                 ref="canvasRef"
@@ -108,8 +108,8 @@ const strokeWidth = ref(1)
 const pos = {x:0,y:0}
 const canvasRef = ref({})
 const chatdiv = ref({})
-const socket = io('gmm.herokuapp.com')
-//const socket = io('ranjan:4040')
+//const socket = io('gmm.herokuapp.com')
+const socket = io('ranjan:4040')
 const text = ref('')
 let messageStore = ref(Array<IMessage>())
 const message = ref('')
@@ -138,13 +138,13 @@ const gameCompleted = ref(false)
 const roundUp = ref(false)
 
 const setPosition = (e:MouseEvent|TouchEvent) => {
-    
+    // console.log(e.target)
     if(e.type === 'mousemove' || e.type === 'mousedown'){
 
         const evt = e as MouseEvent
         const target = evt.target as any
         const rect = target.getBoundingClientRect()
-        const canvas = (canvasRef.value as HTMLCanvasElement).getBoundingClientRect()
+        //const canvas = (canvasRef.value as HTMLCanvasElement).getBoundingClientRect()
         pos.x = evt.pageX - rect.left
         pos.y = evt.pageY - rect.top
     }
@@ -152,9 +152,10 @@ const setPosition = (e:MouseEvent|TouchEvent) => {
         const evt = e as TouchEvent
         const target = evt.target as any
         const rect = target.getBoundingClientRect()
-        const canvas = (canvasRef.value as HTMLCanvasElement).getBoundingClientRect()
+        //const canvas = (canvasRef.value as HTMLCanvasElement).getBoundingClientRect()
         pos.x = evt.touches[0].pageX - rect.left
         pos.y = evt.touches[0].pageY - rect.top
+        // console.log(pos)
     }
 }
 
@@ -229,9 +230,13 @@ const drawFromArray = (drawArray: Array<any>[]) => {
 
 const draw = (e:any) => {
 
-    if (e.buttons !== 1 || !isActive.value) {
+    
+    if (!isActive.value || ((e.type === 'mousemove' || e.type === 'mousedown') && (e.buttons !== 1))) {
         return;
     }
+    //e.preventDefault();
+
+    
     const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
     ctx.beginPath();
     ctx.lineWidth = strokeWidth.value;
@@ -263,8 +268,8 @@ const draw = (e:any) => {
     drawing.lw = strokeWidth.value
     
     drawData.data.push(drawingArr);
-
-    if(drawData.data.length > 50){
+    // console.log(drawData)
+    if(drawData.data.length > 20){
         const arrToSend = [...drawData.data]
         nextTick(()=>{
             sendDraw(arrToSend)
@@ -411,5 +416,17 @@ onMounted(()=>{
     socket.emit('LOG_IN', {
         user: playerName
     })
+
+    document.body.addEventListener("touchstart", (e) => {
+        if (e.target == canvasRef.value) {
+            e.preventDefault();
+        }
+    })
+    document.body.addEventListener("touchmove", (e) => {
+        if (e.target == canvasRef.value) {
+            e.preventDefault();
+        }
+    })
+
 })
 </script>

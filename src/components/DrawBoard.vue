@@ -52,7 +52,7 @@
                 v-model="text" @keypress="sendMessage" maxlength="30">
 
             <div class="flex flex-row" v-show="!isActive">
-                <div v-for="char in hint" class="border align-middle w-10 h-10 rounded-sm text-3xl text-red-600">{{char}}</div>
+                <div v-for="char in hint" class="border align-middle w-10 h-10 rounded-sm text-3xl text-red-600 border-black border-2">{{char}}</div>
             </div>
         </div>
         <div v-show="userWords.length>0" class="flex flex-col p-5 align-middle">
@@ -65,9 +65,11 @@
             </button>
         </div>
 
-        <div v-show="userWords.length==0 && gameCompleted" class="align-middle">
+        <div v-show="userWords.length==0 && gameCompleted" class="align-middle h-1/2">
 
-            <div class="flex flex-col px-6 py-4 shadow-lg animate-bounce align-middle">
+            <div class="flex flex-col px-6 py-4 shadow-lg animate-bounce mt-10 text-center">
+                <h1 class="text-3xl">The word was</h1>
+                <h1 class="text-5xl text-orange-700 mb-8">{{currentWord.toUpperCase()}}</h1>
                 <div class="font-bold text-xl mb-2">{{roundUp ? 'Round UP': 'Score'}}</div>
                 
                 <div v-show="!roundUp" v-for="user in loginUsers" class="text-orange-600 mr-1 text-base">
@@ -120,6 +122,7 @@ const isActive = ref(false)
 messageStore.value = []
 let lastMessage = ''
 const drawData = {data: new Array<any>()}
+const currentWord = ref('')
 interface IMessage{
     user: string,
     message: string
@@ -166,8 +169,10 @@ const setPosition = (e:MouseEvent|TouchEvent) => {
 const resize = () => {
 
       const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
+      const data = ctx.getImageData(0,0, ctx.canvas.width, ctx.canvas.height )
       ctx.canvas.width = window.innerWidth - 32;
       ctx.canvas.height = window.innerHeight - 115;
+      ctx.putImageData(data, 0, 0)
 }
 
 interface IDrawing{
@@ -369,18 +374,13 @@ onMounted(()=>{
     window.addEventListener('resize', resize)
     socket.on('MESSAGE', (data: IMessage) =>{
 
-        // message.value = data.message
-        //messageStore.value.push(data);
-        // currentMessage.value = `${data.user}: ${data.message}`
-        //console.log(currentMessage.value)
-
         const pElem = document.createElement("p")
-        pElem.classList.add(...["absolute", "select-none", "p-2", "bg-yellow-500", "text-white", "rounded-lg", "text-base", "flyout"])
+        pElem.classList.add(...["absolute", "select-none", "p-2", "bg-yellow-500", "text-black", "rounded-lg", "text-base", "text-bold", "flyout"])
         pElem.innerText = data.user + ': '+data.message
         document.body.appendChild(pElem)
         window.setTimeout(()=>{
             document.body.removeChild(pElem)
-        },4000)
+        },5000)
     })
 
     socket.on('DRAWING', (data: any) =>{
@@ -420,7 +420,7 @@ onMounted(()=>{
     })
 
     socket.on('GAME_COMPLETE', (score)=>{
-        
+        currentWord.value = score.currentWord
         isActive.value=false
         userWords.value = []
         nextTick(()=> clearCanvas())  
@@ -448,12 +448,14 @@ onMounted(()=>{
 <style>
 @keyframes flyout-animation {
   0%   {left:60px; top:30px;}
-  100%  {background-color:transparent; color: transparent; left:60px; top:100px;}
+  25%  {background-color:yellow; color: black; left:60px; top:100px;}
+  50%  {background-color:orange; color: black; left:60px; top:150px;}
+  100%  {background-color:transparent; color: transparent; left:60px; top:200px;}
 }
 
 .flyout{
     animation-name: flyout-animation;
-    animation-duration: 4s;
+    animation-duration: 5s;
     animation-iteration-count: 1;
 }
 </style>

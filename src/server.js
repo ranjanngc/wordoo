@@ -89,8 +89,11 @@ const gameUtil =
         if(userList.default.users[userList.default.activeUserIndex]){
             userList.default.users[userList.default.activeUserIndex].active = true;
         }
+        else{
+            userList.default.users[0].active = true;
+        }
         
-        io.emit('GAME_COMPLETE')
+        io.emit('GAME_COMPLETE', {currentWord: userList.default.currentWord.toUpperCase()})
         
         io.emit('MESSAGE', {user: 'bot', message: `The word was "${userList.default.currentWord.toUpperCase()}"`, bot: true, completed: true})
         userList.default.currentWord = '';

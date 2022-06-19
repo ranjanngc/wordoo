@@ -21,7 +21,7 @@
                 id="canvasRef"
                 @mousemove="draw"
                 @mousedown="setPosition"
-                
+                @mouseup="drawFinal"
                 @touchmove="draw"
                 @touchstart="setPosition"
                 @resize="resize"
@@ -116,6 +116,7 @@ const message = ref('')
 const isActive = ref(false)
 messageStore.value = []
 let lastMessage = ''
+const drawData = {data: new Array<any>()}
 interface IMessage{
     user: string,
     message: string
@@ -191,65 +192,95 @@ const drawFromObject= (draw:IDrawing) =>{
     }
 }
 
-const drawFromArray = (draw: number[]) => {
+const drawFromArray = (drawArray: Array<any>[]) => {
+    
     const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
-    ctx.beginPath();
-    //console.log(draw)
-    if(draw.length >= 7){
-        ctx.rect(0, 0, (canvasRef.value as any).width, (canvasRef.value as any).height);
-        ctx.fillStyle = draw[6].toString()
-        ctx.fill();
-    }else{
-        
-        ctx.lineCap = "round";
-        
-        ctx.moveTo(draw[0], draw[1]);
-        ctx.lineTo(draw[2], draw[3]);
-        ctx.strokeStyle = draw[4] as any;
-        ctx.lineWidth = draw[5]
-        ctx.stroke();
-    }
+    let drawIndex = 0;
+    const drawInterval = setInterval(()=>{
+
+        const draw = drawArray[drawIndex]
+        ctx.beginPath();
+        //console.log(draw)
+        if(draw.length >= 7){
+            ctx.rect(0, 0, (canvasRef.value as any).width, (canvasRef.value as any).height);
+            ctx.fillStyle = draw[6].toString()
+            ctx.fill();
+        }else{
+            
+            ctx.lineCap = "round";
+            
+            ctx.moveTo(draw[0], draw[1]);
+            ctx.lineTo(draw[2], draw[3]);
+            ctx.strokeStyle = draw[4] as any;
+            ctx.lineWidth = draw[5]
+            ctx.stroke();
+        }
+        drawIndex++
+
+        if(drawIndex == drawArray.length){
+            clearInterval(drawInterval)
+        }
+    },10)
+    drawArray.forEach((draw: number[]) => {
+       
+    })
+
 }
 
 const draw = (e:any) => {
 
-        if (e.buttons !== 1 || !isActive.value) {
-            return;
-        }
-        const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
-        ctx.beginPath();
-        ctx.lineWidth = strokeWidth.value;
-        ctx.lineCap = "round";
-        ctx.strokeStyle = strokeColor.value;
-        ctx.moveTo(pos.x, pos.y);
-        const drawingArr = new Array<any>()
-        const drawing = {} as IDrawing;
-       
-        drawing.x = pos.x
-        drawing.y= pos.y
-        drawingArr.push(pos.x) // 0
-        drawingArr.push(pos.y) // 1
+    if (e.buttons !== 1 || !isActive.value) {
+        return;
+    }
+    const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
+    ctx.beginPath();
+    ctx.lineWidth = strokeWidth.value;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = strokeColor.value;
+    ctx.moveTo(pos.x, pos.y);
+    const drawingArr = new Array<any>()
+    const drawing = {} as IDrawing;
+    
+    drawing.x = pos.x
+    drawing.y= pos.y
+    drawingArr.push(pos.x) // 0
+    drawingArr.push(pos.y) // 1
 
-        setPosition(e);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-        
-        drawing.mx = pos.x
-        drawing.my= pos.y
+    setPosition(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    
+    drawing.mx = pos.x
+    drawing.my= pos.y
 
-        drawingArr.push(pos.x) // 2
-        drawingArr.push(pos.y) // 3
+    drawingArr.push(pos.x) // 2
+    drawingArr.push(pos.y) // 3
 
-        drawingArr.push(strokeColor.value) // 4
-        drawingArr.push(strokeWidth.value) // 5
+    drawingArr.push(strokeColor.value) // 4
+    drawingArr.push(strokeWidth.value) // 5
 
-        drawing.ss = strokeColor.value
-        drawing.lw = strokeWidth.value
-        // setPosition(e);
-        //drawFromObject(drawing)
+    drawing.ss = strokeColor.value
+    drawing.lw = strokeWidth.value
+    
+    drawData.data.push(drawingArr);
+
+    if(drawData.data.length > 50){
+        const arrToSend = [...drawData.data]
         nextTick(()=>{
-            sendDraw(drawingArr)
+            sendDraw(arrToSend)
         })
+        drawData.data = new Array<any>()
+    }
+}
+
+const drawFinal = (e:any) =>{
+    if(drawData.data.length > 0){
+        const arrToSend = [...drawData.data]
+        nextTick(()=>{
+            sendDraw(arrToSend)
+        })
+        drawData.data = new Array<any>()
+    }
 }
 
 const clearCanvas = () => {
@@ -270,8 +301,10 @@ const fillCanvas = () => {
     ctx.fill();
     //nextTick(()=>{
         const drawing = [0,0,0,0,0,0,strokeColor.value] as Array<any>
+        const drawingArr = new Array<any>()
+        drawingArr.push(drawing)
         //drawing.fl = strokeColor.value
-        sendDraw(drawing)
+        sendDraw(drawingArr)
     //})
 }
 

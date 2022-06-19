@@ -75,7 +75,7 @@ const gameUtil =
         userList.default.lastActiveUserIndex = userList.default.activeUserIndex
         userList.default.activeUserIndex +=1
 
-        if(userList.default.activeUserIndex >= userList.default.users.length){
+        if(userList.default.activeUserIndex >= userList.default.users.length || userList.default.users[userList.default.activeUserIndex] !== undefine){
 
             userList.default.activeUserIndex = 0
         }
@@ -86,13 +86,17 @@ const gameUtil =
             user.doneForRound = false
         })
 
-        userList.default.users[userList.default.activeUserIndex].active = true;
+        if(userList.default.users[userList.default.activeUserIndex] !== undefined){
+            userList.default.users[userList.default.activeUserIndex].active = true;
+        }
         
         io.emit('GAME_COMPLETE')
         
         io.emit('MESSAGE', {user: 'bot', message: `The word was "${userList.default.currentWord.toUpperCase()}"`, bot: true, completed: true})
         userList.default.currentWord = '';
-        io.emit('MESSAGE', {user: 'bot', message: `Player ${userList.default.users[userList.default.activeUserIndex].name} is choosing a word!`, bot: true})
+        if(userList.default.users[userList.default.activeUserIndex] !== undefined){
+            io.emit('MESSAGE', {user: 'bot', message: `Player ${userList.default.users[userList.default.activeUserIndex].name} is choosing a word!`, bot: true})
+        }
 
         //Round completed clear score history
         const gameDone = userList.default.game > 5

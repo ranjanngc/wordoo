@@ -1,22 +1,21 @@
 <!-- Please remove this file from your project -->
 <template>
-    <div class="flex flex-row m-2">
-        <div class="flex flex-col text-left border w-40">
-            <ul>
+    <div class="flex flex-col h-full w-full">
+        <div class="flex flex-row">
+            <ul class="flex flex-row text-left">
                 <li 
                     v-for="user in loginUsers" 
                     :class="(user.doneForRound ? 'bg-green-700 text-white': 'text-orange-600 ')"
-                    class="text-sm select-none">
+                    class="text-sm select-none m-1">
                         {{user.name}}
                         <span class="align-right bg-red-100 text-red-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded dark:bg-red-200 dark:text-red-900">{{user.score}}</span>
                 </li>
             </ul>
         </div>
-        <div v-show="userWords.length === 0 && !gameCompleted">
+        <div v-show="userWords.length === 0 && !gameCompleted" class="m-1 h-4/5">
+            <p class="absolute select-none p-2 bg-yellow-500 text-white rounded-lg text-base" :class="{'flyout': showMessage}" v-show="showMessage">{{currentMessage}}</p>
             <canvas
-                class="border position-relative touch-none"
-                width="600"
-                height="430"
+                class="border position-relative touch-none border-b-2"
                 ref="canvasRef"
                 id="canvasRef"
                 @mousemove="draw"
@@ -26,21 +25,47 @@
                 @touchstart="setPosition"
                 @resize="resize"
             ></canvas>
-            <div class="flex flex-row">
-                <div v-for="char in hint" class="border align-middle w-10 h-10 rounded-sm">{{char}}</div>
+            <div class="flex flex-row border rounded-lg p-5" v-show="isActive">
+            <div class="flex flex-row ">
+                <div class="w-5 h-5 m-1" :style="{'background-color':strokeColor}"></div>
+                <div class="bg-slate-900 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(15 23 42)'"></div>
+                <div class="bg-blue-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(59 130 246)'"></div>
+                <div class="bg-blue-800 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(30 64 175)'"></div>
+                <div class="bg-green-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(34 197 94)'"></div>
+                <div class="bg-green-700 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(21 128 61)'"></div>
+                <div class="bg-red-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(239 68 68)'"></div>
+                <div class="bg-red-800 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(153 27 27)'"></div>
+                <div class="bg-yellow-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(234 179 8)'"></div>
+                <div class="bg-orange-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(249 115 22)'"></div>
+                <div class="bg-pink-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(236 72 153)'"></div>
+                <div class="bg-purple-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(168 85 247)'"></div>
+                <div class="bg-white w-5 h-5 rounded-xl m-1 border-black border" @click="strokeColor='rgb(255 255 255)'"></div>
+                <div class="bg-cyan-400 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(34 211 238)'"></div>
+                <div class="bg-gray-400 m-1"  @click="clearCanvas">Rst</div>
+                <div class="bg-gray-400 m-1"  @click="fillCanvas">Fll</div>
+                <input type="range" orient="vertical" min="1" max="30" step="1" class="w-20 m-1" v-model="strokeWidth">
             </div>
         </div>
-        <div v-show="userWords.length>0" style="width:600px; height:430px" class="flex flex-col p-5 align-middle">
+            <input v-show="!isActive" type="text" 
+                class="w-full border border-black border-solid pl-2 relative h-7"
+                placeholder="guess the word" 
+                v-model="text" @keypress="sendMessage" maxlength="30">
+
+            <div class="flex flex-row" v-show="!isActive">
+                <div v-for="char in hint" class="border align-middle w-10 h-10 rounded-sm text-3xl text-red-600">{{char}}</div>
+            </div>
+        </div>
+        <div v-show="userWords.length>0" class="flex flex-col p-5 align-middle">
             <h3 class="font-bold">Choose a word</h3>
             <button 
                 v-for="word in userWords" 
                 @click="setWord(word)" 
-                class="bg-cyan-400 :focus:bg-cyan-400 hover:bg-violet-600 active:bg-violet-700 m-1 pl-2 pr-2 rounded-sm h-9 w-full">
+                class="bg-cyan-400 :focus:bg-cyan-400 hover:bg-violet-600 active:bg-violet-700 m-1 pl-2 pr-2 rounded-sm h-40 w-full text-4xl">
                 {{word}}
             </button>
         </div>
 
-        <div v-show="userWords.length==0 && gameCompleted" style="width:600px; height:430px" class="align-middle">
+        <div v-show="userWords.length==0 && gameCompleted" class="align-middle">
 
             <div class="flex flex-col px-6 py-4 shadow-lg animate-bounce align-middle">
                 <div class="font-bold text-xl mb-2">{{roundUp ? 'Round UP': 'Score'}}</div>
@@ -52,35 +77,12 @@
             </div>
         </div>
 
-        <div class="flex flex-row border rounded-lg p-5" v-show="isActive">
-            <div class="flex flex-col mr-2">
-                <div class="w-5 h-5 mb-1" :style="{'background-color':strokeColor}"></div>
-                <div class="bg-slate-900 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(15 23 42)'"></div>
-                <div class="bg-blue-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(59 130 246)'"></div>
-                <div class="bg-blue-800 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(30 64 175)'"></div>
-                <div class="bg-green-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(34 197 94)'"></div>
-                <div class="bg-green-700 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(21 128 61)'"></div>
-                <div class="bg-red-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(239 68 68)'"></div>
-                <div class="bg-red-800 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(153 27 27)'"></div>
-                <div class="bg-yellow-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(234 179 8)'"></div>
-                <div class="bg-orange-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(249 115 22)'"></div>
-                <div class="bg-pink-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(236 72 153)'"></div>
-                <div class="bg-purple-500 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(168 85 247)'"></div>
-                <div class="bg-white w-5 h-5 rounded-xl mb-1 border-black border" @click="strokeColor='rgb(255 255 255)'"></div>
-                <div class="bg-cyan-400 w-5 h-5 rounded-xl mb-1" @click="strokeColor='rgb(34 211 238)'"></div>
-                
-            </div>
-            <div>
-                <div class="bg-gray-400 mb-1"  @click="clearCanvas">Rst</div>
-                <div class="bg-gray-400 mb-1"  @click="fillCanvas">Fll</div>
-                <input type="range" orient="vertical" min="1" max="30" step="1" v-model="strokeWidth" class="w-5" style="-webkit-appearance: slider-vertical">
-            </div>
-        </div>
-        <!-- CHAT CONTAINER-->
-        <div class="border">
+        
+        <!-- CHAT CONTAINER
+        <div class="border invisible">
             <div 
                 ref="chatdiv"
-                class="w-80 min-w-fit flex flex-col text-left overflow-auto h-[420px] relative max-w-sm mx-auto scroll-smooth pb-10">
+                class="min-w-fit flex flex-col text-left overflow-auto relative max-w-sm mx-auto scroll-smooth pb-10">
                 <ul>
                     <li 
                         v-for="(item, index) in messageStore"
@@ -93,8 +95,9 @@
                     </li>
                 </ul>
             </div>
-            <input :disabled="isActive" type="text" class="w-full border pl-2" v-model="text" @keypress="sendMessage" maxlength="30">
+            
         </div>
+        -->
     </div>
 </template>
 
@@ -136,7 +139,8 @@ const userWords = ref([])
 userWords.value = []
 const gameCompleted = ref(false)
 const roundUp = ref(false)
-
+const currentMessage = ref('')
+const showMessage = ref(false)
 const setPosition = (e:MouseEvent|TouchEvent) => {
     // console.log(e.target)
     if(e.type === 'mousemove' || e.type === 'mousedown'){
@@ -162,8 +166,8 @@ const setPosition = (e:MouseEvent|TouchEvent) => {
 const resize = () => {
 
       const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
-      ctx.canvas.width = window.innerWidth;
-      ctx.canvas.height = window.innerHeight;
+      ctx.canvas.width = window.innerWidth - 32;
+      ctx.canvas.height = window.innerHeight - 115;
 }
 
 interface IDrawing{
@@ -352,30 +356,38 @@ const setWord = (word:string) => {
     })
     userWords.value = []
 }
+const showChatMessage = (data: IMessage) =>{
+    currentMessage.value = `${data.user}: ${data.message}`
+    showMessage.value = true
 
+    window.setTimeout(()=>{
+        currentMessage.value = ''
+        showMessage.value=false;
+    },4000)
+}
 onMounted(()=>{
-
+    window.addEventListener('resize', resize)
     socket.on('MESSAGE', (data: IMessage) =>{
 
-        message.value = data.message
-        messageStore.value.push(data);
+        // message.value = data.message
+        //messageStore.value.push(data);
+        // currentMessage.value = `${data.user}: ${data.message}`
+        //console.log(currentMessage.value)
 
-        (chatdiv.value as HTMLDListElement).scrollTop = (chatdiv.value as HTMLDListElement).scrollHeight;
+        const pElem = document.createElement("p")
+        pElem.classList.add(...["absolute", "select-none", "p-2", "bg-yellow-500", "text-white", "rounded-lg", "text-base", "flyout"])
+        pElem.innerText = data.user + ': '+data.message
+        document.body.appendChild(pElem)
+        window.setTimeout(()=>{
+            document.body.removeChild(pElem)
+        },4000)
     })
 
     socket.on('DRAWING', (data: any) =>{
 
         if(data.user !== playerName){
             
-            //drawFromObject(data.draw)
             drawFromArray(data.draw)
-            // const ctx = (canvasRef.value as any).getContext("2d")!;
-            // var img=new Image();
-            // img.onload = ()=>{
-            //     ctx.drawImage(img, 0, 0)
-            // }
-
-            // img.src=data.draw;
         }
     })
 
@@ -428,5 +440,19 @@ onMounted(()=>{
         }
     })
 
+    // set canvas size
+    resize()
 })
 </script>
+<style>
+@keyframes flyout-animation {
+  0%   {left:60px; top:30px;}
+  100%  {background-color:transparent; color: transparent; left:60px; top:100px;}
+}
+
+.flyout{
+    animation-name: flyout-animation;
+    animation-duration: 4s;
+    animation-iteration-count: 1;
+}
+</style>

@@ -111,8 +111,8 @@ const strokeWidth = ref(1)
 const pos = {x:0,y:0}
 const canvasRef = ref({})
 const chatdiv = ref({})
-const socket = io('gmm.herokuapp.com')
-//const socket = io('ranjan:4040')
+//const socket = io('gmm.herokuapp.com')
+const socket = io('ranjan:4040')
 const text = ref('')
 let messageStore = ref(Array<IMessage>())
 const message = ref('')
@@ -396,6 +396,7 @@ onMounted(()=>{
         gameCompleted.value = data.completed
         roundUp.value = data.roundUp
         loginUsers.value = data.users
+        console.log(data)
         data.users.forEach((user:any) => {
             if(user.name === playerName && !isActive.value){
                 isActive.value = user.active

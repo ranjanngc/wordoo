@@ -75,7 +75,7 @@ const gameUtil =
         userList.default.lastActiveUserIndex = userList.default.activeUserIndex
         userList.default.activeUserIndex +=1
 
-        if(userList.default.activeUserIndex >= userList.default.users.length || userList.default.users[userList.default.activeUserIndex] !== undefine){
+        if(userList.default.activeUserIndex >= userList.default.users.length || !userList.default.users[userList.default.activeUserIndex]){
 
             userList.default.activeUserIndex = 0
         }
@@ -86,7 +86,7 @@ const gameUtil =
             user.doneForRound = false
         })
 
-        if(userList.default.users[userList.default.activeUserIndex] !== undefined){
+        if(userList.default.users[userList.default.activeUserIndex]){
             userList.default.users[userList.default.activeUserIndex].active = true;
         }
         
@@ -94,7 +94,7 @@ const gameUtil =
         
         io.emit('MESSAGE', {user: 'bot', message: `The word was "${userList.default.currentWord.toUpperCase()}"`, bot: true, completed: true})
         userList.default.currentWord = '';
-        if(userList.default.users[userList.default.activeUserIndex] !== undefined){
+        if(userList.default.users[userList.default.activeUserIndex]){
             io.emit('MESSAGE', {user: 'bot', message: `Player ${userList.default.users[userList.default.activeUserIndex].name} is choosing a word!`, bot: true})
         }
 
@@ -144,9 +144,11 @@ io.on('connection', function(socket) {
     socket.on('SEND_MESSAGE', (data) => {
 
         if(userList.default.currentWord && data.message.toLowerCase() === userList.default.currentWord?.toLowerCase()){
-          const winUser = userList.default.users.find((item) => item.id !== socket.id)
+          const winUser = userList.default.users.find((item) => item.name === data.user)
           
             if(!winUser.doneForRound){
+
+                // console.log(data, winUser)
                 const gt = ((new Date().getTime())- userList.default.startTime)/1000;
                 winUser.score += Math.floor(2000/gt);
                 //userList.default.gameScore.push({name: winUser.name, score: winUser.score})
@@ -154,13 +156,11 @@ io.on('connection', function(socket) {
                 io.emit('MESSAGE', {message: `${winUser.name} guessed the word!`, user: 'bot', score: winUser.score, bot: true})
 
                 const au = userList.default.users.filter((user) => user.doneForRound)
-
+                io.emit('REFRESH_USER_LIST',  { users: userList.default.users, round: userList.default.game })
                 if(au && au.length === userList.default.users.length-1){
                     gameUtil.endGame()
                 }
-                else {
-                    io.emit('REFRESH_USER_LIST',  { users: userList.default.users, round: userList.default.game })
-                }
+               
             }
         }
         else{

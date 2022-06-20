@@ -109,7 +109,7 @@ const gameUtil =
         }
 
         //Round completed clear score history
-        const gameDone = userList.default.game > 5
+        const gameDone = userList.default.game > 10
         if(gameDone){
             userList.default.game = 1;
             userList.default.users.forEach((user)=>{

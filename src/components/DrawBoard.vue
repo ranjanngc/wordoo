@@ -4,20 +4,21 @@
         <div class="flex flex-row">
             <ul class="flex flex-row text-left">
                 <li 
-                    v-for="user in loginUsers" 
+                    v-for="user in scoreList" 
                     
                     class="text-sm select-none m-1">
                         {{user.name}}
                         <span 
-                        :class="(user.doneForRound ? 'bg-green-700 text-white': 'text-orange-600 ')"
-                        class="align-right bg-red-100 text-red-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded dark:bg-red-200 dark:text-red-900">
+                        :class="(user.doneForRound ? 'bg-green-700 text-white': 'bg-red-100 text-red-800')"
+                        class="align-right text-xs font-semibold mr-2 px-2.5 py-0.5 rounded dark:bg-red-200 dark:text-red-900">
                             {{user.score}}
                         </span>
                 </li>
             </ul>
             <div class="ml-auto border rounded-xl text-center w-10 h-7 mr-1 font-bold text-white bg-blue-600">{{counter}}</div>
         </div>
-        <div v-show="userWords.length === 0 && !gameCompleted" class="m-1 h-4/5">
+        <div v-show="kicked" class="text-5xl text-red-700 bg-yellow-300">You Have Been Kicked</div>
+        <div v-show="!kicked && userWords.length === 0 && !gameCompleted" class="m-1 h-4/5" >
             <p class="absolute select-none p-2 bg-yellow-500 text-white rounded-lg text-base" :class="{'flyout': showMessage}" v-show="showMessage">{{currentMessage}}</p>
             <canvas
                 class="border position-relative touch-none border-b-2"
@@ -30,8 +31,7 @@
                 @touchstart="setPosition"
                 @resize="resize"
             ></canvas>
-            <canvas width="100" height="100" v-show="false" ref="copyCanvas"></canvas>
-            <div class="flex flex-row border rounded-lg p-5" v-show="isActive">
+            <div class="" v-show="isActive">
             <div class="flex flex-row ">
                 <div class="w-5 h-5 m-1" :style="{'background-color':strokeColor}"></div>
                 <div class="bg-slate-900 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(15 23 42)'"></div>
@@ -61,8 +61,10 @@
                 <div v-for="char in hint" class="border align-middle w-10 h-10 rounded-sm text-3xl text-red-600 border-orange-500 border-1 text-center">{{char}}</div>
             </div>
         </div>
-        <div v-show="userWords.length>0" class="flex flex-col p-5 align-middle">
-            <h3 class="font-bold">Choose a word</h3>
+        <div v-show="userWords.length>0 && !kicked" class="flex flex-col p-5 align-middle">
+            <h1 class="text-1xl text-orange-700 mb-8" v-show="currentWord">The word was - {{currentWord.toUpperCase()}}</h1>
+            
+            <h3 class="font-bold">Your turn now, choose a word and draw it and let your friends guess it</h3>
             <button 
                 v-for="word in userWords" 
                 @click="setWord(word)" 
@@ -78,8 +80,8 @@
                 <h1 class="text-5xl text-orange-700 mb-8">{{currentWord.toUpperCase()}}</h1>
                 <div class="font-bold text-xl mb-2">{{roundUp ? 'Round UP': 'Score'}}</div>
                 
-                <div v-show="!roundUp" v-for="user in loginUsers" class="text-orange-600 mr-1 text-base">
-                    {{user.name + ':' + user.score}}
+                <div v-show="!roundUp" v-for="(user, index) in scoreList" class="text-orange-600 mr-1 text-base">
+                    {{user.name + ':  ' + user.score}}
                 </div>
                 <p v-if="loginUsers.find(u => u.active)">{{(loginUsers.filter(u=> u.active))[0].name}} is choosing a word!</p>
             </div>
@@ -92,6 +94,8 @@ import { ref, onMounted, inject, nextTick } from 'vue'
 import io from 'socket.io-client'
 import {NameUtility} from '../db/names'
 import siteConfig from '../../site.config.json'
+//import siteConfig from '../../site.config.json'
+import { computed } from '@vue/reactivity';
 
 let strokeColor = ref('rgb(15 23 42)')
 const strokeWidth = ref(1)
@@ -110,7 +114,8 @@ const currentWord = ref('')
 interface IMessage{
     user: string,
     message: string,
-    won: Boolean
+    won: Boolean,
+    bot: false
 }
 interface ILoginUser {
     name: string,
@@ -132,6 +137,10 @@ const currentMessage = ref('')
 const showMessage = ref(false)
 const counter = ref(0)
 let intervalHandler:any
+let kickHandler:any
+const kicked = ref(false)
+const clockAudio = new Audio('/assets/clock.mp3')
+const winAudio = new Audio('/assets/win.mp3')
 const setPosition = (e:MouseEvent|TouchEvent) => {
 
     if(e.type === 'mousemove' || e.type === 'mousedown'){
@@ -196,8 +205,8 @@ const drawFromArray = (drawArray: Array<any>[]) => {
     const drawInterval = setInterval(()=>{
 
         const draw = drawArray[drawIndex]
-        const widthOffset = ctx.canvas.width / draw[6]
-        const heightOffset = ctx.canvas.height / draw[7]
+        const widthOffset = ctx.canvas.width / (draw[6] )
+        const heightOffset = ctx.canvas.height / (draw[7])
         ctx.beginPath();
 
         if(draw.length >= 9){
@@ -340,11 +349,15 @@ const getWord = () =>{
     .then(response => response.json())
     .then((words)=>{
         userWords.value =words
+         kickHandler = window.setTimeout(()=>{
+            socket.disconnect();
+            kicked.value = true;
+        }, 10000)
     });
 }
 
 const setWord = (word:string) => {
-
+    clearInterval(kickHandler)
     socket.emit('REGISTER-WORD', {
         user: playerName,
         word: word
@@ -360,6 +373,20 @@ const showChatMessage = (data: IMessage) =>{
         showMessage.value=false;
     },4000)
 }
+const sortByScore = ( a:ILoginUser, b:ILoginUser ) => {
+        if ( a.score > b.score ){
+            return -1;
+        }
+        if ( a.score < b.score ){
+            return 1;
+        }
+        return 0;
+    }
+const scoreList = computed(() =>{
+
+    return loginUsers.value.sort(sortByScore) 
+})
+
 onMounted(()=>{
     window.addEventListener('resize', resize)
     socket.on('MESSAGE', (data: IMessage) =>{
@@ -369,7 +396,7 @@ onMounted(()=>{
         
         pElem.classList.add(...(data.message.indexOf('guessed')) > -1 ? ['bg-green-500', 'flyout-guessed'] : ['bg-yellow-500','flyout'])
 
-        pElem.innerText = data.user + ': '+data.message
+        pElem.innerText = data.bot ? data.message : data.user + ': '+data.message
         document.body.appendChild(pElem)
         window.setTimeout(()=>{
             document.body.removeChild(pElem)
@@ -381,8 +408,7 @@ onMounted(()=>{
         }
 
         if(data.message.indexOf('joined!') != -1 || data.message.indexOf('left') != -1){
-            const audio = new Audio('/assets/info.mp3')
-            audio.play();
+           winAudio.play()
         }
     })
 
@@ -434,12 +460,13 @@ onMounted(()=>{
                 counter.value -=1
 
                 if(counter.value === 10 && !doneForRound.value){
-                    const audio = new Audio('/assets/clock.mp3')
-                    audio.play()
+                    clockAudio.play()
                 }
 
                 if(counter.value<= 0){
                     counter.value = 0;
+                    clockAudio.pause()
+                    clockAudio.currentTime = 0
                     clearInterval(intervalHandler)
                 }
             }, 1000)
@@ -470,6 +497,18 @@ onMounted(()=>{
 
     // set canvas size
     resize()
+
+    // Inactive kick
+
+    window.addEventListener('blur', () => {
+        kickHandler = window.setTimeout(()=>{
+            socket.disconnect();
+            kicked.value = true;
+        }, 10000)
+    })
+    window.addEventListener('focus', () => {
+        clearInterval(kickHandler)
+    })
 })
 </script>
 <style>

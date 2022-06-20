@@ -108,6 +108,7 @@
 import { ref, onMounted, inject, nextTick } from 'vue'
 import io from 'socket.io-client'
 import {NameUtility} from '../db/names'
+import siteConfig from '../../site.config.json'
 //import drum from './../assets/instrument_strum.ogg'
 // import * as bullseye from '@/assets/bullseye.svg?url'
 let strokeColor = ref('rgb(15 23 42)')
@@ -116,7 +117,7 @@ const pos = {x:0,y:0}
 const canvasRef = ref({})
 const chatdiv = ref({})
 //const socket = io('gmm.herokuapp.com')
-const socket = io('ranjan:4040')
+const socket = io(siteConfig.socket)
 const text = ref('')
 let messageStore = ref(Array<IMessage>())
 const message = ref('')
@@ -487,8 +488,8 @@ onMounted(()=>{
 @keyframes flyout-animation {
   0%   {left:60px; top:30px;}
   25%  {background-color:yellow; color: black; left:60px; top:100px;}
-  50%  {background-color:orange; color: black; left:60px; top:150px;}
-  100%  {background-color:transparent; color: transparent; left:60px; top:200px;}
+  50%  {background-color:orange; color: black; left:60px; top:200px;}
+  100%  {background-color:transparent; color: transparent; left:60px; top:300px;}
 }
 
 @keyframes flyout-guessed-animation {

@@ -5,10 +5,14 @@
             <ul class="flex flex-row text-left">
                 <li 
                     v-for="user in loginUsers" 
-                    :class="(user.doneForRound ? 'bg-green-700 text-white': 'text-orange-600 ')"
+                    
                     class="text-sm select-none m-1">
                         {{user.name}}
-                        <span class="align-right bg-red-100 text-red-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded dark:bg-red-200 dark:text-red-900">{{user.score}}</span>
+                        <span 
+                        :class="(user.doneForRound ? 'bg-green-700 text-white': 'text-orange-600 ')"
+                        class="align-right bg-red-100 text-red-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded dark:bg-red-200 dark:text-red-900">
+                            {{user.score}}
+                        </span>
                 </li>
             </ul>
             <div class="ml-auto border rounded-xl text-center w-10 h-7 mr-1 font-bold text-white bg-blue-600">{{counter}}</div>
@@ -26,6 +30,7 @@
                 @touchstart="setPosition"
                 @resize="resize"
             ></canvas>
+            <canvas width="100" height="100" v-show="false" ref="copyCanvas"></canvas>
             <div class="flex flex-row border rounded-lg p-5" v-show="isActive">
             <div class="flex flex-row ">
                 <div class="w-5 h-5 m-1" :style="{'background-color':strokeColor}"></div>
@@ -79,28 +84,6 @@
                 <p v-if="loginUsers.find(u => u.active)">{{(loginUsers.filter(u=> u.active))[0].name}} is choosing a word!</p>
             </div>
         </div>
-
-        
-        <!-- CHAT CONTAINER
-        <div class="border invisible">
-            <div 
-                ref="chatdiv"
-                class="min-w-fit flex flex-col text-left overflow-auto relative max-w-sm mx-auto scroll-smooth pb-10">
-                <ul>
-                    <li 
-                        v-for="(item, index) in messageStore"
-                        :class="(item.user === 'bot' ? 'text-green-500': 'even:bg-slate-300 odd:bg-slate-200')"
-                        class=" mb-1 text-sm text-ellipsis select-none pl-1">
-                            <span 
-                                
-                                class="text-orange-600 mr-1">{{item.user + ':'}}</span>
-                            {{item.message}}
-                    </li>
-                </ul>
-            </div>
-            
-        </div>
-        -->
     </div>
 </template>
 
@@ -109,14 +92,12 @@ import { ref, onMounted, inject, nextTick } from 'vue'
 import io from 'socket.io-client'
 import {NameUtility} from '../db/names'
 import siteConfig from '../../site.config.json'
-//import drum from './../assets/instrument_strum.ogg'
-// import * as bullseye from '@/assets/bullseye.svg?url'
+
 let strokeColor = ref('rgb(15 23 42)')
 const strokeWidth = ref(1)
 const pos = {x:0,y:0}
 const canvasRef = ref({})
 const chatdiv = ref({})
-//const socket = io('gmm.herokuapp.com')
 const socket = io(siteConfig.socket)
 const text = ref('')
 let messageStore = ref(Array<IMessage>())
@@ -145,19 +126,19 @@ loginUsers.value = []
 const userWords = ref([])
 userWords.value = []
 const gameCompleted = ref(false)
+const doneForRound = ref(false)
 const roundUp = ref(false)
 const currentMessage = ref('')
 const showMessage = ref(false)
 const counter = ref(0)
 let intervalHandler:any
 const setPosition = (e:MouseEvent|TouchEvent) => {
-    // console.log(e.target)
+
     if(e.type === 'mousemove' || e.type === 'mousedown'){
 
         const evt = e as MouseEvent
         const target = evt.target as any
         const rect = target.getBoundingClientRect()
-        //const canvas = (canvasRef.value as HTMLCanvasElement).getBoundingClientRect()
         pos.x = evt.pageX - rect.left
         pos.y = evt.pageY - rect.top
     }
@@ -165,21 +146,20 @@ const setPosition = (e:MouseEvent|TouchEvent) => {
         const evt = e as TouchEvent
         const target = evt.target as any
         const rect = target.getBoundingClientRect()
-        //const canvas = (canvasRef.value as HTMLCanvasElement).getBoundingClientRect()
         pos.x = evt.touches[0].pageX - rect.left
         pos.y = evt.touches[0].pageY - rect.top
-        // console.log(pos)
+
     }
 }
 
 const resize = () => {
 
-      const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
-      const data = ctx.getImageData(0,0, ctx.canvas.width, ctx.canvas.height )
-      ctx.canvas.width = window.innerWidth - 10;
-      ctx.canvas.height = window.innerHeight - 115;
-      // ctx.canvas.setAttribute('style', 'transform: translate(100px, 100px)')
-      ctx.putImageData(data, 0, 0)
+    const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
+    const data = ctx.getImageData(0,0, ctx.canvas.width, ctx.canvas.height )
+    ctx.canvas.width = window.innerWidth - 10;
+    ctx.canvas.height = window.innerHeight - 115;
+
+    ctx.putImageData(data, 0, 0)
 }
 
 interface IDrawing{
@@ -216,18 +196,20 @@ const drawFromArray = (drawArray: Array<any>[]) => {
     const drawInterval = setInterval(()=>{
 
         const draw = drawArray[drawIndex]
+        const widthOffset = ctx.canvas.width / draw[6]
+        const heightOffset = ctx.canvas.height / draw[7]
         ctx.beginPath();
-        //console.log(draw)
-        if(draw.length >= 7){
+
+        if(draw.length >= 9){
             ctx.rect(0, 0, (canvasRef.value as any).width, (canvasRef.value as any).height);
-            ctx.fillStyle = draw[6].toString()
+            ctx.fillStyle = draw[8].toString()
             ctx.fill();
         }else{
             
             ctx.lineCap = "round";
             
-            ctx.moveTo(draw[0], draw[1]);
-            ctx.lineTo(draw[2], draw[3]);
+            ctx.moveTo(draw[0] * widthOffset, draw[1] * heightOffset);
+            ctx.lineTo(draw[2] * widthOffset, draw[3] * heightOffset);
             ctx.strokeStyle = draw[4] as any;
             ctx.lineWidth = draw[5]
             ctx.stroke();
@@ -283,8 +265,10 @@ const draw = (e:any) => {
     drawing.ss = strokeColor.value
     drawing.lw = strokeWidth.value
     
+    drawingArr.push(ctx.canvas.width) // 6
+    drawingArr.push(ctx.canvas.height) // 7
     drawData.data.push(drawingArr);
-    // console.log(drawData)
+
     if(drawData.data.length > 20){
         const arrToSend = [...drawData.data]
         nextTick(()=>{
@@ -321,7 +305,7 @@ const fillCanvas = () => {
     ctx.fillStyle = strokeColor.value
     ctx.fill();
     //nextTick(()=>{
-        const drawing = [0,0,0,0,0,0,strokeColor.value] as Array<any>
+        const drawing = [0,0,0,0,0,0,0,0,strokeColor.value] as Array<any>
         const drawingArr = new Array<any>()
         drawingArr.push(drawing)
         //drawing.fl = strokeColor.value
@@ -356,7 +340,6 @@ const getWord = () =>{
     .then(response => response.json())
     .then((words)=>{
         userWords.value =words
-        //console.log('getword', userWords.value)
     });
 }
 
@@ -417,7 +400,6 @@ onMounted(()=>{
         roundUp.value = data.roundUp
         
         loginUsers.value = data.users
-        console.log(data)
         data.users.forEach((user:any) => {
             if(user.name === playerName && !isActive.value){
                 isActive.value = user.active
@@ -427,6 +409,12 @@ onMounted(()=>{
                 }
             }
         });
+
+        doneForRound.value = (data.users.find((u:any)=> u.doneForRound && u.name === playerName) != null)
+
+        if(doneForRound){
+            clearInterval(intervalHandler)
+        }
     })
 
     socket.on('disconnect', (data:any) => {
@@ -438,14 +426,14 @@ onMounted(()=>{
     socket.on('GAME_HINT', (data: any) => {
         gameCompleted.value = false
         hint.value = data.hint
-        console.log(data)
+
         if(data.start){
             clearInterval(intervalHandler)
             counter.value = data.guessTime
             intervalHandler = setInterval(()=>{
                 counter.value -=1
 
-                if(counter.value === 10){
+                if(counter.value === 10 && !doneForRound.value){
                     const audio = new Audio('/assets/clock.mp3')
                     audio.play()
                 }

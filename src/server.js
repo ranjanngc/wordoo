@@ -9,9 +9,9 @@ const { data } = require("autoprefixer");
 const { clearInterval } = require("timers");
 const server = express();
 
-
+console.log(path.join(__dirname, "../dist", "assets"))
 server.use("/assets", express.static(path.join(__dirname, "../dist", "assets")));
-// server.use("/js", express.static(path.join(__dirname, "../dist", "js")));
+//server.use("/instrument_strum", express.static(path.join(__dirname, "../dist/instrument_strum.ogg", "ogg")));
 // server.use("/css", express.static(path.join(__dirname, "../dist", "css")));
 server.use(
     "/favicon.ico",
@@ -56,6 +56,13 @@ const GlobalTimer = setInterval(()=>{
             gameUtil.endGame()
         }
     }
+
+    const activeUser = userList.default.users.find(user => user.active);
+    if(!activeUser){
+
+        gameUtil.endGame()
+    }
+
 }, 5000)
 
 const gameUtil = 
@@ -89,7 +96,7 @@ const gameUtil =
         if(userList.default.users[userList.default.activeUserIndex]){
             userList.default.users[userList.default.activeUserIndex].active = true;
         }
-        else{
+        else if(userList.default.users[0]){
             userList.default.users[0].active = true;
         }
         
@@ -156,7 +163,7 @@ io.on('connection', function(socket) {
                 winUser.score += Math.floor(2000/gt);
                 //userList.default.gameScore.push({name: winUser.name, score: winUser.score})
                 winUser.doneForRound = true
-                io.emit('MESSAGE', {message: `${winUser.name} guessed the word!`, user: 'bot', score: winUser.score, bot: true})
+                io.emit('MESSAGE', {message: `${winUser.name} guessed the word!`, user: 'bot', score: winUser.score, bot: true, won: true})
 
                 const au = userList.default.users.filter((user) => user.doneForRound)
                 io.emit('REFRESH_USER_LIST',  { users: userList.default.users, round: userList.default.game })
@@ -194,7 +201,7 @@ io.on('connection', function(socket) {
         userList.default.game+=1;
         userList.default.currentWord = data.word;
         userList.default.startTime = new Date().getTime()
-        const wordMap = [...data.word].map(()=> '')
+        const wordMap = [...data.word].map((c)=> c === ' ' ? '_' : '')
         userList.default.hintWord = wordMap
         const tm = new Date();
         userList.default.totalSeconds = 50 //(wordMap.length * 10) + 20
@@ -205,7 +212,7 @@ io.on('connection', function(socket) {
             user.round = userList.default.round
         })
 
-        io.emit('GAME_HINT',  { hint: wordMap, guessTime: userList.default.totalSeconds })
+        io.emit('GAME_HINT',  { hint: wordMap, guessTime: userList.default.totalSeconds, start: true  })
     })
 
     socket.on("disconnect", (data) => {

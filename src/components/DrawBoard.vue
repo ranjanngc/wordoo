@@ -11,6 +11,7 @@
                         <span class="align-right bg-red-100 text-red-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded dark:bg-red-200 dark:text-red-900">{{user.score}}</span>
                 </li>
             </ul>
+            <div class="ml-auto border rounded-xl text-center w-10 h-7 mr-1 font-bold text-white bg-blue-600">{{counter}}</div>
         </div>
         <div v-show="userWords.length === 0 && !gameCompleted" class="m-1 h-4/5">
             <p class="absolute select-none p-2 bg-yellow-500 text-white rounded-lg text-base" :class="{'flyout': showMessage}" v-show="showMessage">{{currentMessage}}</p>
@@ -52,7 +53,7 @@
                 v-model="text" @keypress="sendMessage" maxlength="30">
 
             <div class="flex flex-row" v-show="!isActive">
-                <div v-for="char in hint" class="border align-middle w-10 h-10 rounded-sm text-3xl text-red-600 border-black border-2">{{char}}</div>
+                <div v-for="char in hint" class="border align-middle w-10 h-10 rounded-sm text-3xl text-red-600 border-orange-500 border-1 text-center">{{char}}</div>
             </div>
         </div>
         <div v-show="userWords.length>0" class="flex flex-col p-5 align-middle">
@@ -107,14 +108,15 @@
 import { ref, onMounted, inject, nextTick } from 'vue'
 import io from 'socket.io-client'
 import {NameUtility} from '../db/names'
+//import drum from './../assets/instrument_strum.ogg'
 // import * as bullseye from '@/assets/bullseye.svg?url'
 let strokeColor = ref('rgb(15 23 42)')
 const strokeWidth = ref(1)
 const pos = {x:0,y:0}
 const canvasRef = ref({})
 const chatdiv = ref({})
-const socket = io('gmm.herokuapp.com')
-//const socket = io('ranjan:4040')
+//const socket = io('gmm.herokuapp.com')
+const socket = io('ranjan:4040')
 const text = ref('')
 let messageStore = ref(Array<IMessage>())
 const message = ref('')
@@ -125,7 +127,8 @@ const drawData = {data: new Array<any>()}
 const currentWord = ref('')
 interface IMessage{
     user: string,
-    message: string
+    message: string,
+    won: Boolean
 }
 interface ILoginUser {
     name: string,
@@ -144,6 +147,8 @@ const gameCompleted = ref(false)
 const roundUp = ref(false)
 const currentMessage = ref('')
 const showMessage = ref(false)
+const counter = ref(0)
+let intervalHandler:any
 const setPosition = (e:MouseEvent|TouchEvent) => {
     // console.log(e.target)
     if(e.type === 'mousemove' || e.type === 'mousedown'){
@@ -170,8 +175,9 @@ const resize = () => {
 
       const ctx = (canvasRef.value as HTMLCanvasElement).getContext("2d")!;
       const data = ctx.getImageData(0,0, ctx.canvas.width, ctx.canvas.height )
-      ctx.canvas.width = window.innerWidth - 32;
+      ctx.canvas.width = window.innerWidth - 10;
       ctx.canvas.height = window.innerHeight - 115;
+      // ctx.canvas.setAttribute('style', 'transform: translate(100px, 100px)')
       ctx.putImageData(data, 0, 0)
 }
 
@@ -375,12 +381,25 @@ onMounted(()=>{
     socket.on('MESSAGE', (data: IMessage) =>{
 
         const pElem = document.createElement("p")
-        pElem.classList.add(...["absolute", "select-none", "p-2", "bg-yellow-500", "text-black", "rounded-lg", "text-base", "text-bold", "flyout"])
+        pElem.classList.add(...["absolute", "select-none", "p-2", "text-black", "rounded-lg", "text-base", "text-bold"])
+        
+        pElem.classList.add(...(data.message.indexOf('guessed')) > -1 ? ['bg-green-500', 'flyout-guessed'] : ['bg-yellow-500','flyout'])
+
         pElem.innerText = data.user + ': '+data.message
         document.body.appendChild(pElem)
         window.setTimeout(()=>{
             document.body.removeChild(pElem)
         },5000)
+
+        if(data.won){
+            const audio = new Audio('/assets/win.mp3')
+            audio.play();
+        }
+
+        if(data.message.indexOf('joined!') != -1 || data.message.indexOf('left') != -1){
+            const audio = new Audio('/assets/info.mp3')
+            audio.play();
+        }
     })
 
     socket.on('DRAWING', (data: any) =>{
@@ -395,6 +414,7 @@ onMounted(()=>{
         
         gameCompleted.value = data.completed
         roundUp.value = data.roundUp
+        
         loginUsers.value = data.users
         console.log(data)
         data.users.forEach((user:any) => {
@@ -417,6 +437,24 @@ onMounted(()=>{
     socket.on('GAME_HINT', (data: any) => {
         gameCompleted.value = false
         hint.value = data.hint
+        console.log(data)
+        if(data.start){
+            clearInterval(intervalHandler)
+            counter.value = data.guessTime
+            intervalHandler = setInterval(()=>{
+                counter.value -=1
+
+                if(counter.value === 10){
+                    const audio = new Audio('/assets/clock.mp3')
+                    audio.play()
+                }
+
+                if(counter.value<= 0){
+                    counter.value = 0;
+                    clearInterval(intervalHandler)
+                }
+            }, 1000)
+        }
     })
 
     socket.on('GAME_COMPLETE', (score)=>{
@@ -453,9 +491,22 @@ onMounted(()=>{
   100%  {background-color:transparent; color: transparent; left:60px; top:200px;}
 }
 
+@keyframes flyout-guessed-animation {
+  0%   {top:0px;left:60px}
+  25%  {background-color:rgb(0, 136, 255); color: black; top:0px;left:60px}
+  50%  {background-color:rgb(242, 0, 255); color: black; top:0px;left:60px}
+  100%  {background-color:transparent; color: transparent; top:0px;left:60px}
+}
+
 .flyout{
     animation-name: flyout-animation;
     animation-duration: 5s;
+    animation-iteration-count: 1;
+}
+
+.flyout-guessed{
+    animation-name: flyout-guessed-animation;
+    animation-duration: 4s;
     animation-iteration-count: 1;
 }
 </style>

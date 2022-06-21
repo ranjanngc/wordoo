@@ -1,12 +1,12 @@
 const path = require("path");
 const express = require("express");
-const { createSSRApp } = require("vue");
-const { renderToString } = require("@vue/server-renderer");
+// const { createSSRApp } = require("vue");
+// const { renderToString } = require("@vue/server-renderer");
 const manifest = require("../dist/manifest.json");
 const { getWords, randomNumber} = require('./db/words.js')
 var http = require('http');
 const { data } = require("autoprefixer");
-const { clearInterval } = require("timers");
+// const { clearInterval } = require("timers");
 const server = express();
 
 console.log(path.join(__dirname, "../dist", "assets"))

@@ -9,7 +9,7 @@
                     class="text-sm select-none m-1">
                         {{user.name}}
                         <span 
-                        :class="(user.doneForRound ? 'bg-green-700 text-white': 'bg-red-100 text-red-800')"
+                        :class="(doneForRound ? 'bg-green-700 text-white': 'bg-red-100 text-red-800')"
                         class="align-right text-xs font-semibold mr-2 px-2.5 py-0.5 rounded dark:bg-red-200 dark:text-red-900">
                             {{user.score}}
                         </span>
@@ -90,12 +90,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, inject, nextTick } from 'vue'
+import { ref, onMounted, inject, nextTick, resolveComponent } from 'vue'
 import io from 'socket.io-client'
 import {NameUtility} from '../db/names'
 import siteConfig from '../../site.config.json'
 //import siteConfig from '../../site.config.json'
 import { computed } from '@vue/reactivity';
+import {IUserData, ISocketData} from './../socket/interfaces'
+
 
 let strokeColor = ref('rgb(15 23 42)')
 const strokeWidth = ref(1)
@@ -104,13 +106,14 @@ const canvasRef = ref({})
 const chatdiv = ref({})
 const socket = io(siteConfig.socket)
 const text = ref('')
-let messageStore = ref(Array<IMessage>())
+// let messageStore = ref(Array<IMessage>())
 const message = ref('')
 const isActive = ref(false)
-messageStore.value = []
+// messageStore.value = []
 let lastMessage = ''
 const drawData = {data: new Array<any>()}
 const currentWord = ref('')
+/*
 interface IMessage{
     user: string,
     message: string,
@@ -123,10 +126,10 @@ interface ILoginUser {
     score:Number,
     doneForRound: Boolean,
 }
-
+*/
 const hint = ref(Array<string>())
 const playerName = NameUtility.random();
-const loginUsers = ref(Array<ILoginUser>())
+const loginUsers = ref(Array<IUserData>())
 loginUsers.value = []
 const userWords = ref([])
 userWords.value = []
@@ -141,6 +144,8 @@ let kickHandler:any
 const kicked = ref(false)
 const clockAudio = new Audio('/assets/clock.mp3')
 const winAudio = new Audio('/assets/win.mp3')
+const currentUser = ref<IUserData | undefined>()
+
 const setPosition = (e:MouseEvent|TouchEvent) => {
 
     if(e.type === 'mousemove' || e.type === 'mousedown'){
@@ -324,22 +329,23 @@ const fillCanvas = () => {
 
 const sendDraw = async (draw:number[]) => {
     const ctx = (canvasRef.value as any);//.getContext("2d")!;
-    await socket.emit('SEND_DRAWING', {
-        user: playerName,
-        draw: draw
-    })
-
+    if( currentUser.value){
+        currentUser.value.draw = draw
+        await socket.emit('SEND_DRAWING', {
+            user: currentUser.value
+        })
+    }
 }
 
 const sendMessage = (e:KeyboardEvent) =>{
 
     if(e.key === "Enter" && text.value.trim() !== '' && lastMessage!== text.value.trim()){
-        socket.emit('SEND_MESSAGE', {
-            user: playerName,
-            message: text.value.trim()
-        })
-        lastMessage = text.value.trim()
-        text.value = ''
+        if(currentUser.value != null){
+            currentUser.value.message = text.value.trim()
+            socket.emit('SEND_MESSAGE', currentUser.value)
+            lastMessage = text.value.trim()
+            text.value = ''
+        }
     }
 }
 
@@ -348,24 +354,27 @@ const getWord = () =>{
     fetch('/random')
     .then(response => response.json())
     .then((words)=>{
-        userWords.value =words
-         kickHandler = window.setTimeout(()=>{
+        console.log(words)
+        userWords.value = words
+         /*kickHandler = window.setTimeout(()=>{
             socket.disconnect();
             kicked.value = true;
-        }, 10000)
+        }, 10000)*/
     });
 }
 
 const setWord = (word:string) => {
     clearInterval(kickHandler)
-    socket.emit('REGISTER-WORD', {
-        user: playerName,
-        word: word
-    })
-    userWords.value = []
+
+    if(currentUser.value){
+
+        currentUser.value.word = word
+        socket.emit('REGISTER-WORD',  currentUser.value)
+        userWords.value = []
+    }
 }
-const showChatMessage = (data: IMessage) =>{
-    currentMessage.value = `${data.user}: ${data.message}`
+const showChatMessage = (data: IUserData) =>{
+    currentMessage.value = `${data.name}: ${data.message}`
     showMessage.value = true
 
     window.setTimeout(()=>{
@@ -373,7 +382,7 @@ const showChatMessage = (data: IMessage) =>{
         showMessage.value=false;
     },4000)
 }
-const sortByScore = ( a:ILoginUser, b:ILoginUser ) => {
+const sortByScore = ( a:IUserData, b:IUserData ) => {
         if ( a.score > b.score ){
             return -1;
         }
@@ -388,15 +397,16 @@ const scoreList = computed(() =>{
 })
 
 onMounted(()=>{
-    window.addEventListener('resize', resize)
-    socket.on('MESSAGE', (data: IMessage) =>{
 
+    window.addEventListener('resize', resize)
+    socket.on('MESSAGE', (data: IUserData) =>{
+        console.log(data)
         const pElem = document.createElement("p")
         pElem.classList.add(...["absolute", "select-none", "p-2", "text-black", "rounded-lg", "text-base", "text-bold"])
         
         pElem.classList.add(...(data.message.indexOf('guessed')) > -1 ? ['bg-green-500', 'flyout-guessed'] : ['bg-yellow-500','flyout'])
 
-        pElem.innerText = data.bot ? data.message : data.user + ': '+data.message
+        pElem.innerText = data.name + ': '+data.message
         document.body.appendChild(pElem)
         window.setTimeout(()=>{
             document.body.removeChild(pElem)
@@ -414,18 +424,25 @@ onMounted(()=>{
 
     socket.on('DRAWING', (data: any) =>{
 
-        if(data.user !== playerName){
+        if(data.name !== currentUser.value?.name){
             
-            drawFromArray(data.draw)
+            drawFromArray(data.user.draw)
         }
     })
 
-    socket.on('REFRESH_USER_LIST', (data:any) => {
+    socket.on('REFRESH_USER_LIST', (data: ISocketData) => {
         
-        gameCompleted.value = data.completed
-        roundUp.value = data.roundUp
+        console.log(data)
+        gameCompleted.value = data.gameOver
+        roundUp.value = data.roundOver
         
         loginUsers.value = data.users
+
+        if(currentUser.value === undefined){
+
+            currentUser.value = data.users.find((user:IUserData) => user.name === playerName) ?? undefined
+        }
+
         data.users.forEach((user:any) => {
             if(user.name === playerName && !isActive.value){
                 isActive.value = user.active
@@ -436,7 +453,7 @@ onMounted(()=>{
             }
         });
 
-        doneForRound.value = (data.users.find((u:any)=> u.doneForRound && u.name === playerName) != null)
+        doneForRound.value = (data.users.find((u:IUserData)=> u.won && u.name === playerName) != null)
 
         if(doneForRound){
             clearInterval(intervalHandler)
@@ -444,9 +461,7 @@ onMounted(()=>{
     })
 
     socket.on('disconnect', (data:any) => {
-        socket.emit('LOG_OUT', {
-            user: playerName
-        })
+        socket.emit('LOG_OUT', currentUser.value)
     })
 
     socket.on('GAME_HINT', (data: any) => {
@@ -456,7 +471,7 @@ onMounted(()=>{
         if(data.start){
             clearInterval(intervalHandler)
             counter.value = data.guessTime
-            intervalHandler = setInterval(()=>{
+            /*intervalHandler = setInterval(()=>{
                 counter.value -=1
 
                 if(counter.value === 10 && !doneForRound.value){
@@ -469,7 +484,7 @@ onMounted(()=>{
                     clockAudio.currentTime = 0
                     clearInterval(intervalHandler)
                 }
-            }, 1000)
+            }, 1000)*/
         }
     })
 
@@ -481,9 +496,9 @@ onMounted(()=>{
     })
 
     socket.emit('LOG_IN', {
-        user: playerName
+        name: playerName
     })
-
+    
     document.body.addEventListener("touchstart", (e) => {
         if (e.target == canvasRef.value) {
             e.preventDefault();
@@ -499,7 +514,7 @@ onMounted(()=>{
     resize()
 
     // Inactive kick
-
+    /*
     window.addEventListener('blur', () => {
         kickHandler = window.setTimeout(()=>{
             socket.disconnect();
@@ -508,7 +523,7 @@ onMounted(()=>{
     })
     window.addEventListener('focus', () => {
         clearInterval(kickHandler)
-    })
+    })*/
 })
 </script>
 <style>

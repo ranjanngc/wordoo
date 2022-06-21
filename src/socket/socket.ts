@@ -1,15 +1,16 @@
 import http from 'http'
 import SocketIo from 'socket.io'
-import uuid from 'uuid'
+import { v4 as uuidv4 } from 'uuid'
 import {IUserData, IGameData, IRegisterWord, IRoom} from './interfaces'
-const MAX_USER_IN_ROOM: Number = 10;
+import { randomNumber } from '../db/words'
+import { Socket } from 'socket.io-client'
+const MAX_USER_IN_ROOM: number = 5;
 
 const SocketRooms = new Array<IRoom>()
-
+let io:any;
 const InitializeSocket = (_server: http.RequestListener) => {
     const serverInstate = http.createServer(_server);
-    //const io = Socket(serverInstate);
-    const io = new SocketIo.Server(serverInstate)
+    io = new SocketIo.Server(serverInstate)
 
     io.on('connection', function(Socket: any) {
 
@@ -21,6 +22,7 @@ const InitializeSocket = (_server: http.RequestListener) => {
             if(room){
                 
                 data.room = room.name
+                data.socketId = Socket.id
                 room.users.push(data)
                 // set an active user if not yet
                 if(room.users.find(user => user.active)){
@@ -31,8 +33,10 @@ const InitializeSocket = (_server: http.RequestListener) => {
             }
             else {
                 // new room
-                room = { 
-                    name: uuid.v4(), 
+                room = {
+
+                    name: uuidv4().substring(0,5), 
+                    
                     game: {} as IGameData, 
                     users: [],
                     gameCount: 0,
@@ -40,17 +44,20 @@ const InitializeSocket = (_server: http.RequestListener) => {
                     gameOver: false,
                     roundOver: false,activeUser:0,lastActiveUser:0
                 }
+
+                data.socketId = Socket.id
                 data.room = room.name
                 room.users.push(data)
                 SocketRooms.push(room)
             }
             
+            Socket.join(room.name)
             // notify team members for new player
-            io.to(room.name).emit('REFRESH_USER_LIST',  { users: room.users, room: room.name })
+            io.to(room.name).emit('REFRESH_USER_LIST',  { users: room.users })
             io.to(room.name).emit('MESSAGE', {user: 'bot', message: `${data.name} joined!`, bot: true})
         })
 
-        Socket.on('REGISTER-WORD', (data: IRegisterWord) => {
+        Socket.on('REGISTER-WORD', (data: IUserData) => {
             
             const room = SocketRooms.find(room => room.name === data.room)
 
@@ -67,15 +74,17 @@ const InitializeSocket = (_server: http.RequestListener) => {
         })
 
         Socket.on("disconnect", (data: IUserData) => {
-      
-            const room = SocketRooms.find(room => room.name === data.room)
+            
+            const room = SocketRooms.find(room => room.users.find(user => user.socketId === Socket.id))
 
             if(room){
 
-                const userLeft = room.users.find((item) => item.name === data.name)
+                const userLeft = room.users.find((item) => item.socketId === Socket.id)
 
                 if(userLeft){
+
                     room.users.splice(room.users.indexOf(userLeft), 1)
+                    
                     io.to(room.name).emit('REFRESH_USER_LIST', {users: room.users})
                     io.to(room.name).emit('MESSAGE', {user: 'bot', message: `Player ${userLeft.name} left`, bot: true})
 
@@ -84,12 +93,14 @@ const InitializeSocket = (_server: http.RequestListener) => {
                         gameUtil.endGame(room, io)
                     }
                 }
+
+                Socket.leave(room.name)
             }
         });
 
         Socket.on('SEND_DRAWING', (data:any) => {
-
-            const room = SocketRooms.find(room => room.name === data.room)
+            
+            const room = SocketRooms.find(r => r.name === data.user.room)
             if(room){
 
                 io.to(room.name).emit('DRAWING', data)
@@ -97,22 +108,26 @@ const InitializeSocket = (_server: http.RequestListener) => {
         })
 
         Socket.on('SEND_MESSAGE', (data:IUserData) => {
-
+            
             const room = SocketRooms.find(room => room.name === data.room)
             if(room){
-                
+                let messageData = {} as IUserData
+
                 if(room.game.currentWord.toLocaleLowerCase() === data.message.toLocaleLowerCase()){
 
                     const winUser = room.users.find(user => user.name == data.name)
-
                     if(winUser && !winUser.won){
                         winUser.won = true
                         let score = room.game.currentWord.length * 100
                         const delay = (new Date().getTime() - room.game.startTime) /1000
                         score = Math.floor(score / delay)
+                        winUser.score = winUser.score || 0
                         winUser.score += score
-
-                        io.in(room.name).emit('MESSAGE', {message: `${winUser.name} guessed the word!`, user: 'bot', score: winUser.score, bot: true, won: true})
+                        console.log(delay, winUser.score)
+                        messageData.name = data.name
+                        messageData.message = `${winUser.name} guessed the word!`
+                        messageData.won= true;
+                        io.in(room.name).emit('MESSAGE', messageData)
                     }
 
                     // Move the game to next player if all player guessed the word
@@ -123,15 +138,21 @@ const InitializeSocket = (_server: http.RequestListener) => {
                     }
                     else
                     {
-                        io.to(room.name).emit('REFRESH_USER_LIST',  { users: room.users, round: room.roundCount })
+                        io.to(room.name).emit('REFRESH_USER_LIST',  { users: room.users, roundOver: room.roundOver,  gameOver: room.gameOver, room: room.name })
                     }
                 }
                 else {
+                    messageData.message = data.message
+                    messageData.name = data.name
                     io.to(room.name).emit('MESSAGE', data)
                 }
             }
         })
-    })  
+    }) 
+    
+    serverInstate.listen(process.env.PORT ?? 4040);
+
+    console.log('listening on http://ranjan:4040')
 }
 
 const gameUtil = 
@@ -169,9 +190,11 @@ const gameUtil =
             room.users[0].active = true;
         }
         
-        io.to(room.name).emit('GAME_COMPLETE', {currentWord: room.game.currentWord.toUpperCase()})
+        if(room.game.currentWord){
+            io.to(room.name).emit('GAME_COMPLETE', {currentWord: room.game.currentWord.toUpperCase()})
         
-        io.to(room.name).emit('MESSAGE', {user: 'bot', message: `The word was "${room.game.currentWord.toUpperCase()}"`, bot: true, completed: true})
+            io.to(room.name).emit('MESSAGE', {user: 'bot', message: `The word was "${room.game.currentWord.toUpperCase()}"`, bot: true, completed: true})
+        }
         room.game.currentWord = '';
         if(room.users[room.activeUser]){
             io.to(room.name).emit('MESSAGE', {user: 'bot', message: `Player ${room.users[room.activeUser].name} is choosing a word!`, bot: true})
@@ -185,6 +208,43 @@ const gameUtil =
                 user.score = 0
             })
         }
-        io.to(room.name).emit('REFRESH_USER_LIST', {users: room.users, completed: true, roundUp : gameDone, game: room.game})
+        io.to(room.name).emit('REFRESH_USER_LIST', {users: room.users, completed: true, gameOver : room.gameOver, roundOver: room.roundOver})
     }
 }
+
+const GlobalTimer = setInterval(()=>{
+    SocketRooms.forEach(room => {
+        if(room.game.currentWord){
+
+            const diff = (new Date().getTime() - (room.game.lastHintTime || room.game.startTime))/1000
+            const fullDiff = (new Date().getTime() - (room.game.startTime))/1000
+
+            if(diff >= 20){
+                const index = randomNumber(1, room.game.currentWord.length)
+                const wordMap = [...room.game.currentWord].map((c,i)=> i===index ? c : '')
+    
+                wordMap.forEach((c,i) => {
+                    if(c !== '')
+                    room.game.hintWord[i]=c.toUpperCase();
+                })
+                room.game.lastHintTime = new Date().getTime()
+                io.to(room.name).emit('GAME_HINT',  { hint: room.game.hintWord, guessTime: room.game.totalSeconds })
+            }
+            else if(fullDiff >= 50){
+    
+                gameUtil.endGame(room, io)
+            }
+        }
+
+        const activeUser = room.users.find(user => user.active);
+        if(!activeUser){
+
+            gameUtil.endGame(room, io)
+        }
+    });
+}, 5000)
+
+const SocketUtil = {
+    Initialize: InitializeSocket
+}
+export {  SocketUtil }

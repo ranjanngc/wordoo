@@ -4,7 +4,10 @@ export interface IUserData {
     score: number,
     room: string,
     message: string,
-    won: boolean
+    won: boolean,
+    draw: Array<any>,
+    word: string,
+    socketId: string
 }
 
 export interface IGameData {
@@ -37,6 +40,12 @@ export interface IRegisterWord {
     word: string,
     user: string,
     room: string
+}
+
+export interface ISocketData {
+    users: Array<IUserData>,
+    roundOver: boolean,
+    gameOver: boolean,
 }
 
 // export default IUserData

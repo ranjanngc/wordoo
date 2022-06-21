@@ -6,10 +6,12 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "ssr": "node src/server.js",
-    "start": "node src/server.js"
+    "ssr": "tsc && node src/server.js",
+    "start": "tsc && node src/server.js"
   },
   "dependencies": {
+    "@types/express": "^4.17.13",
+    "@types/uuid": "^8.3.4",
     "@vue/server-renderer": "^3.2.37",
     "autoprefixer": "^10.4.7",
     "express": "^4.18.1",

@@ -20,7 +20,8 @@ export interface IGameData {
     totalSeconds: number,
     
     hintProvider: {},
-    gameEndHandler: {}
+    gameEndHandler: {},
+    kickVote:string[]
 }
 
 export interface IRoom {

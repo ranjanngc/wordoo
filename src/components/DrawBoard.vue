@@ -32,30 +32,37 @@
                 @resize="resize"
             ></canvas>
             <div class="" v-show="isActive">
-            <div class="flex flex-row ">
-                <div class="w-5 h-5 m-1" :style="{'background-color':strokeColor}"></div>
-                <div class="bg-slate-900 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(15 23 42)'"></div>
-                <div class="bg-blue-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(59 130 246)'"></div>
-                <div class="bg-blue-800 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(30 64 175)'"></div>
-                <div class="bg-green-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(34 197 94)'"></div>
-                <div class="bg-green-700 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(21 128 61)'"></div>
-                <div class="bg-red-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(239 68 68)'"></div>
-                <div class="bg-red-800 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(153 27 27)'"></div>
-                <div class="bg-yellow-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(234 179 8)'"></div>
-                <div class="bg-orange-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(249 115 22)'"></div>
-                <div class="bg-pink-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(236 72 153)'"></div>
-                <div class="bg-purple-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(168 85 247)'"></div>
-                <div class="bg-white w-5 h-5 rounded-xl m-1 border-black border" @click="strokeColor='rgb(255 255 255)'"></div>
-                <div class="bg-cyan-400 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(34 211 238)'"></div>
-                <div class="bg-gray-400 m-1"  @click="clearCanvas">Rst</div>
-                <div class="bg-gray-400 m-1"  @click="fillCanvas">Fll</div>
-                <input type="range" orient="vertical" min="1" max="30" step="1" class="w-20 m-1" v-model="strokeWidth">
+                <div class="flex flex-row ">
+                    <div class="w-5 h-5 m-1" :style="{'background-color':strokeColor}"></div>
+                    <div class="bg-slate-900 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(15 23 42)'"></div>
+                    <div class="bg-blue-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(59 130 246)'"></div>
+                    <div class="bg-blue-800 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(30 64 175)'"></div>
+                    <div class="bg-green-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(34 197 94)'"></div>
+                    <div class="bg-green-700 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(21 128 61)'"></div>
+                    <div class="bg-red-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(239 68 68)'"></div>
+                    <div class="bg-red-800 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(153 27 27)'"></div>
+                    <div class="bg-yellow-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(234 179 8)'"></div>
+                    <div class="bg-orange-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(249 115 22)'"></div>
+                    <div class="bg-pink-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(236 72 153)'"></div>
+                    <div class="bg-purple-500 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(168 85 247)'"></div>
+                    <div class="bg-white w-5 h-5 rounded-xl m-1 border-black border" @click="strokeColor='rgb(255 255 255)'"></div>
+                    <div class="bg-cyan-400 w-5 h-5 rounded-xl m-1" @click="strokeColor='rgb(34 211 238)'"></div>
+                    <div class="bg-gray-400 m-1"  @click="clearCanvas">Rst</div>
+                    <div class="bg-gray-400 m-1"  @click="fillCanvas">Fll</div>
+                    <input type="range" orient="vertical" min="1" max="30" step="1" class="w-20 m-1" v-model="strokeWidth">
+                </div>
             </div>
-        </div>
-            <input v-show="!isActive" type="text" 
-                class="w-full border border-black border-solid pl-2 relative h-7"
-                placeholder="guess the word" 
-                v-model="text" @keypress="sendMessage" maxlength="30">
+
+                <input v-show="!isActive" type="text" 
+                    class="w-full border border-black border-solid pl-2 relative h-7"
+                    placeholder="guess the word" 
+                    v-model="text" @keypress="sendMessage" maxlength="30">
+                <button 
+                    @click="voteKickUser" 
+                    class="text-center p-1 absolute top-10 flex text-base bg-orange-400 hover:bg-orange-600 border rounded-lg" 
+                    v-show="activeUser!=='' && !isVoted && !isActive">
+                        Kick {{ activeUser }}
+                </button>
 
             <div class="flex flex-row" v-show="!isActive">
                 <div v-for="char in hint" class="border align-middle w-10 h-10 rounded-sm text-3xl text-red-600 border-orange-500 border-1 text-center">{{char}}</div>
@@ -113,20 +120,6 @@ const isActive = ref(false)
 let lastMessage = ''
 const drawData = {data: new Array<any>()}
 const currentWord = ref('')
-/*
-interface IMessage{
-    user: string,
-    message: string,
-    won: Boolean,
-    bot: false
-}
-interface ILoginUser {
-    name: string,
-    active: Boolean,
-    score:Number,
-    doneForRound: Boolean,
-}
-*/
 const hint = ref(Array<string>())
 const playerName = NameUtility.random();
 const loginUsers = ref(Array<IUserData>())
@@ -145,7 +138,7 @@ const kicked = ref(false)
 const clockAudio = new Audio('/assets/clock.mp3')
 const winAudio = new Audio('/assets/win.mp3')
 const currentUser = ref<IUserData | undefined>()
-
+const isVoted = ref(false)
 const setPosition = (e:MouseEvent|TouchEvent) => {
 
     if(e.type === 'mousemove' || e.type === 'mousedown'){
@@ -356,10 +349,6 @@ const getWord = () =>{
     .then((words)=>{
         console.log(words)
         userWords.value = words
-         /*kickHandler = window.setTimeout(()=>{
-            socket.disconnect();
-            kicked.value = true;
-        }, 10000)*/
     });
 }
 
@@ -382,31 +371,47 @@ const showChatMessage = (data: IUserData) =>{
         showMessage.value=false;
     },4000)
 }
+
 const sortByScore = ( a:IUserData, b:IUserData ) => {
-        if ( a.score > b.score ){
-            return -1;
-        }
-        if ( a.score < b.score ){
-            return 1;
-        }
-        return 0;
+    if ( a.score > b.score ){
+        return -1;
     }
+    if ( a.score < b.score ){
+        return 1;
+    }
+    return 0;
+}
+
+const activeUser = computed(()=>{
+    let activeUser = ''
+    if(loginUsers){
+        activeUser = loginUsers.value.find(user=> user.active)?.name ?? ''
+    }
+
+    return activeUser;
+})
+
 const scoreList = computed(() =>{
 
     return loginUsers.value.sort(sortByScore) 
 })
 
+const voteKickUser = () =>{
+    socket.emit('KICK',  currentUser.value)
+    isVoted.value = true
+}
+
 onMounted(()=>{
 
     window.addEventListener('resize', resize)
     socket.on('MESSAGE', (data: IUserData) =>{
-        console.log(data)
+
         const pElem = document.createElement("p")
         pElem.classList.add(...["absolute", "select-none", "p-2", "text-black", "rounded-lg", "text-base", "text-bold"])
         
-        pElem.classList.add(...(data.message.indexOf('guessed')) > -1 ? ['bg-green-500', 'flyout-guessed'] : ['bg-yellow-500','flyout'])
+        pElem.classList.add(...(data.message.indexOf('guessed') || !data.name) > -1 ? ['bg-green-500', 'flyout-guessed'] : ['bg-yellow-500','flyout'])
 
-        pElem.innerText = data.name + ': '+data.message
+        pElem.innerText = data.name ? data.name + ': '+data.message : data.message
         document.body.appendChild(pElem)
         window.setTimeout(()=>{
             document.body.removeChild(pElem)
@@ -471,20 +476,13 @@ onMounted(()=>{
         if(data.start){
             clearInterval(intervalHandler)
             counter.value = data.guessTime
-            /*intervalHandler = setInterval(()=>{
+            intervalHandler = setInterval(()=>{
                 counter.value -=1
 
-                if(counter.value === 10 && !doneForRound.value){
-                    clockAudio.play()
+                if(counter.value === 0 || doneForRound.value){
+                     clearInterval(intervalHandler)
                 }
-
-                if(counter.value<= 0){
-                    counter.value = 0;
-                    clockAudio.pause()
-                    clockAudio.currentTime = 0
-                    clearInterval(intervalHandler)
-                }
-            }, 1000)*/
+            }, 1000)
         }
     })
 
@@ -492,7 +490,15 @@ onMounted(()=>{
         currentWord.value = score.currentWord
         isActive.value=false
         userWords.value = []
-        nextTick(()=> clearCanvas())  
+        nextTick(()=> clearCanvas())
+        isVoted.value = false  
+    })
+
+    socket.on('KICK', (data) => {
+        if(data.name === currentUser.value?.name){
+            socket.disconnect()
+            kicked.value = true
+        }
     })
 
     socket.emit('LOG_IN', {
@@ -512,18 +518,6 @@ onMounted(()=>{
 
     // set canvas size
     resize()
-
-    // Inactive kick
-    /*
-    window.addEventListener('blur', () => {
-        kickHandler = window.setTimeout(()=>{
-            socket.disconnect();
-            kicked.value = true;
-        }, 10000)
-    })
-    window.addEventListener('focus', () => {
-        clearInterval(kickHandler)
-    })*/
 })
 </script>
 <style>

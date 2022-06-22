@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "tsc && vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "ssr": "tsc && node src/server.js",
-    "start": "tsc && node src/server.js"
+    "start": "node src/server.js"
   },
   "dependencies": {
     "@types/express": "^4.17.13",

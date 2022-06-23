@@ -49,5 +49,14 @@ export interface ISocketData {
     gameOver: boolean,
 }
 
+export interface IDrawing{
+    x: number,
+    y: number,
+    mx: number,
+    my: number,
+    ss: string,
+    lw: number,
+    fl: string
+}
 // export default IUserData
 // export { IUserData, IGameData, IRegisterWord, IRoom, IGameData}

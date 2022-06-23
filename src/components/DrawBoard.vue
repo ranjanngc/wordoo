@@ -26,8 +26,8 @@
                 <div v-for="char in hint" class="border align-middle w-10 h-10 rounded-sm text-3xl text-red-600 border-black border-1 text-center">{{char}}</div>
             </div>
         </div>
-        <div v-show="userWords.length>0 && !kicked" class="flex flex-col p-5 align-middle">
-            <h1 class="text-1xl text-orange-700 mb-8" v-show="currentWord">The word was - {{currentWord.toUpperCase()}}</h1>
+        <div v-show="userWords.length>0 && !kicked" class="flex flex-col p-5 align-middle text-center">
+            <h1 class="text-3xl text-orange-700 mb-8 animate-bounce" v-show="currentWord">The word was - {{currentWord.toLocaleUpperCase()}}</h1>
             
             <h3 class="font-bold">Your turn now, choose a word and draw it and let your friends guess it</h3>
             <button 
@@ -110,7 +110,6 @@ const getWord = () =>{
     fetch('/random')
     .then(response => response.json())
     .then((words)=>{
-        console.log(words)
         userWords.value = words
     });
 }
@@ -197,7 +196,6 @@ onMounted(()=>{
 
     socket.on('REFRESH_USER_LIST', (data: ISocketData) => {
         
-        console.log(data)
         gameCompleted.value = data.gameOver
         roundUp.value = data.roundOver
         

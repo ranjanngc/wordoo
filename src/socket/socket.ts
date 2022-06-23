@@ -123,7 +123,7 @@ const InitializeSocket = (_server: http.RequestListener) => {
                         score = Math.floor(score / delay)
                         winUser.score = winUser.score || 0
                         winUser.score += score
-                        console.log(delay, winUser.score)
+
                         messageData.name = data.name
                         messageData.message = `${winUser.name} guessed the word!`
                         messageData.won= true;
